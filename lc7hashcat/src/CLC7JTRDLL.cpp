@@ -22,7 +22,17 @@ CLC7JTRDLL::CLC7JTRDLL(QString jtrdllversion)
 	QDir d(g_pLinkage->GetPluginsDirectory());
 	d.cd("lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}");
 
-	QFile::copy(d.filePath(QString("jtrdll_%1%2").arg(m_jtrdllversion).arg(ext)), m_jtrfname);
+	QString jtrsrc = d.filePath(QString("jtrdll_%1%2").arg(m_jtrdllversion).arg(ext));
+	if (!QFile::exists(jtrsrc))
+	{
+		jtrsrc = d.filePath(QString("libjtrdll_%1%2").arg(m_jtrdllversion).arg(ext));
+	}
+	if (!QFile::exists(jtrsrc) || !QFile::copy(jtrsrc, m_jtrfname))
+	{
+		TRDBG(QString("CLC7JTRDLL: failed to copy jtrdll from %1").arg(jtrsrc).toUtf8().constData());
+		QFile::remove(m_jtrfname);
+		return;
+	}
 #if defined(_DEBUG) && (PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64)
 	QFile::copy(d.filePath(QString("jtrdll_%1%2").arg(m_jtrdllversion).arg(".pdb")), m_jtrfname.left(m_jtrfname.length() - ext.length()) + ".pdb");
 #endif
@@ -48,9 +58,11 @@ CLC7JTRDLL::CLC7JTRDLL(QString jtrdllversion)
 	m_jtrdll_preflight = (TYPEOF_jtrdll_preflight *)m_jtrdll->resolve("jtrdll_preflight");
 	m_jtrdll_set_extra_opencl_kernel_args = (TYPEOF_jtrdll_set_extra_opencl_kernel_args *)m_jtrdll->resolve("jtrdll_set_extra_opencl_kernel_args");
 
-	if (m_jtrdll_main == NULL || m_jtrdll_abort == NULL || m_jtrdll_get_status == NULL || m_jtrdll_get_charset_info == NULL || m_jtrdll_cleanup == NULL || m_jtrdll_preflight == NULL || m_jtrdll_set_extra_opencl_kernel_args == NULL)
+	TYPEOF_jtrdll_abi_hooks_struct_size *abi_size = (TYPEOF_jtrdll_abi_hooks_struct_size *)m_jtrdll->resolve("jtrdll_abi_hooks_struct_size");
+
+	if (m_jtrdll_main == NULL || m_jtrdll_abort == NULL || m_jtrdll_get_status == NULL || m_jtrdll_get_charset_info == NULL || m_jtrdll_cleanup == NULL || m_jtrdll_preflight == NULL || m_jtrdll_set_extra_opencl_kernel_args == NULL || abi_size == NULL || abi_size() != sizeof(JTRDLL_HOOKS))
 	{
-		TRDBG("Can't resolve jtrdll functions");
+		TRDBG("Can't resolve jtrdll functions or JTRDLL_HOOKS ABI mismatch (rebuild jtrdll and copy into app bundle lcplugins)");
 		Q_ASSERT(0);
 		delete m_jtrdll;
 		m_jtrdll = NULL;

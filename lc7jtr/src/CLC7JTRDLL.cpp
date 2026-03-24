@@ -22,7 +22,17 @@ CLC7JTRDLL::CLC7JTRDLL(QString jtrdllversion)
 	QDir d(g_pLinkage->GetPluginsDirectory());
 	d.cd("lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}");
 
-	QFile::copy(d.filePath(QString("jtrdll_%1%2").arg(m_jtrdllversion).arg(ext)), m_jtrfname);
+	QString jtrsrc = d.filePath(QString("jtrdll_%1%2").arg(m_jtrdllversion).arg(ext));
+	if (!QFile::exists(jtrsrc))
+	{
+		jtrsrc = d.filePath(QString("libjtrdll_%1%2").arg(m_jtrdllversion).arg(ext));
+	}
+	if (!QFile::exists(jtrsrc) || !QFile::copy(jtrsrc, m_jtrfname))
+	{
+		TRDBG(QString("CLC7JTRDLL: failed to copy jtrdll from %1").arg(jtrsrc).toUtf8().constData());
+		QFile::remove(m_jtrfname);
+		return;
+	}
 #if defined(_DEBUG) && (PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64)
 	QFile::copy(d.filePath(QString("jtrdll_%1%2").arg(m_jtrdllversion).arg(".pdb")), m_jtrfname.left(m_jtrfname.length() - ext.length()) + ".pdb");
 #endif
@@ -48,9 +58,11 @@ CLC7JTRDLL::CLC7JTRDLL(QString jtrdllversion)
 	m_jtrdll_preflight = (TYPEOF_jtrdll_preflight *)m_jtrdll->resolve("jtrdll_preflight");
 	m_jtrdll_set_extra_opencl_kernel_args = (TYPEOF_jtrdll_set_extra_opencl_kernel_args *)m_jtrdll->resolve("jtrdll_set_extra_opencl_kernel_args");
 
-	if (m_jtrdll_main == NULL || m_jtrdll_abort == NULL || m_jtrdll_get_status == NULL || m_jtrdll_get_charset_info == NULL || m_jtrdll_cleanup == NULL || m_jtrdll_preflight == NULL || m_jtrdll_set_extra_opencl_kernel_args == NULL)
+	TYPEOF_jtrdll_abi_hooks_struct_size *abi_size = (TYPEOF_jtrdll_abi_hooks_struct_size *)m_jtrdll->resolve("jtrdll_abi_hooks_struct_size");
+
+	if (m_jtrdll_main == NULL || m_jtrdll_abort == NULL || m_jtrdll_get_status == NULL || m_jtrdll_get_charset_info == NULL || m_jtrdll_cleanup == NULL || m_jtrdll_preflight == NULL || m_jtrdll_set_extra_opencl_kernel_args == NULL || abi_size == NULL || abi_size() != sizeof(JTRDLL_HOOKS))
 	{
-		TRDBG("Can't resolve jtrdll functions");
+		TRDBG("Can't resolve jtrdll functions or JTRDLL_HOOKS ABI mismatch (rebuild jtrdll and copy into app bundle lcplugins)");
 		Q_ASSERT(0);
 		delete m_jtrdll;
 		m_jtrdll = NULL;
@@ -71,6 +83,7 @@ CLC7JTRDLL::CLC7JTRDLL(QString jtrdllversion)
 
 void CLC7JTRDLL::do_jtrdll_cleanup()
 {
+#ifdef _MSC_VER
 	__try
 	{
 		m_jtrdll_cleanup();
@@ -78,6 +91,15 @@ void CLC7JTRDLL::do_jtrdll_cleanup()
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
 	}
+#else
+	try
+	{
+		m_jtrdll_cleanup();
+	}
+	catch (...)
+	{
+	}
+#endif
 }
 
 CLC7JTRDLL::~CLC7JTRDLL()
@@ -114,36 +136,43 @@ bool CLC7JTRDLL::IsValid()
 
 int CLC7JTRDLL::main(int argc, char **argv, struct JTRDLL_HOOKS *hooks)
 {
+	if (!m_jtrdll_main) return -1;
 	return m_jtrdll_main(argc, argv, hooks);
 }
 
 void CLC7JTRDLL::terminate(void)
 {
+	if (!m_jtrdll_abort) return;
 	m_jtrdll_abort(0);
 }
 
 void CLC7JTRDLL::abort(bool timeout)
 {
+	if (!m_jtrdll_abort) return;
 	m_jtrdll_abort(timeout?1:0);
 }
 
 void CLC7JTRDLL::get_status(struct JTRDLL_STATUS *jtrdllstatus)
 {
+	if (!m_jtrdll_get_status) { memset(jtrdllstatus, 0, sizeof(*jtrdllstatus)); return; }
 	return m_jtrdll_get_status(jtrdllstatus);
 }
 
 int CLC7JTRDLL::get_charset_info(const char *path, unsigned char * charmin, unsigned char *charmax, unsigned char *len, unsigned char *count, unsigned char allchars[256])
 {
+	if (!m_jtrdll_get_charset_info) return -1;
 	return m_jtrdll_get_charset_info(path, charmin, charmax, len, count, allchars);
 }
 
 void CLC7JTRDLL::preflight(int argc, char **argv, struct JTRDLL_HOOKS *hooks, struct JTRDLL_PREFLIGHT *jtrdllpreflight)
 {
+	if (!m_jtrdll_preflight) { memset(jtrdllpreflight, 0, sizeof(*jtrdllpreflight)); return; }
 	m_jtrdll_preflight(argc, argv, hooks, jtrdllpreflight);
 }
 
 void CLC7JTRDLL::set_extra_opencl_kernel_args(const char *extra_opencl_kernel_args)
 {
+	if (!m_jtrdll_set_extra_opencl_kernel_args) return;
 	m_jtrdll_set_extra_opencl_kernel_args(extra_opencl_kernel_args);
 }
 

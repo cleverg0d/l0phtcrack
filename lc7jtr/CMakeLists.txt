@@ -25,6 +25,7 @@ SET(lc7jtr_SOURCES
 	src/CTechniqueJTRSingleGUI.cpp
 	src/CTechniqueJTRBruteGUI.cpp
 	src/CTechniqueJTRDictionaryGUI.cpp
+	src/CTechniqueJTRFinalyseGUI.cpp
 	src/jtrnodeworker.cpp
 	src/jtrworker.cpp
 	src/linkage.cpp
@@ -62,6 +63,7 @@ SET(lc7jtr_HEADERS
 	include/CTechniqueJTRSingleGUI.h
 	include/CTechniqueJTRBruteGUI.h
 	include/CTechniqueJTRDictionaryGUI.h
+	include/CTechniqueJTRFinalyseGUI.h
 	include/jtrnodeworker.h
 	include/jtrworker.h
 	include/jtrexe_crashdump.h
@@ -89,5 +91,36 @@ ADD_LIBRARY(lc7jtr SHARED ${lc7jtr_SOURCES} ${lc7jtr_HEADERS} ${lc7jtr_UI_HEADER
 #TARGET_LINK_LIBRARIES(lc7jtr)
 
 qt5_use_modules(lc7jtr Widgets)
+
+IF(APPLE)
+    ADD_CUSTOM_COMMAND(TARGET lc7jtr POST_BUILD
+        COMMAND install_name_tool
+            -change "/opt/homebrew/opt/qt@5/lib/QtWidgets.framework/Versions/5/QtWidgets"
+                    "@loader_path/../../../Frameworks/QtWidgets.framework/Versions/5/QtWidgets"
+            -change "/opt/homebrew/opt/qt@5/lib/QtGui.framework/Versions/5/QtGui"
+                    "@loader_path/../../../Frameworks/QtGui.framework/Versions/5/QtGui"
+            -change "/opt/homebrew/opt/qt@5/lib/QtCore.framework/Versions/5/QtCore"
+                    "@loader_path/../../../Frameworks/QtCore.framework/Versions/5/QtCore"
+            "$<TARGET_FILE:lc7jtr>"
+        COMMENT "Fixing Qt framework paths in lc7jtr"
+    )
+    ADD_CUSTOM_COMMAND(TARGET lc7jtr POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${CMAKE_BINARY_DIR}/dist/lc7.app/Contents/MacOS/lcplugins/lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}"
+        COMMAND ${CMAKE_COMMAND} -E copy
+            "$<TARGET_FILE:lc7jtr>"
+            "${CMAKE_BINARY_DIR}/dist/lc7.app/Contents/MacOS/lcplugins/lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}/liblc7jtr.dylib"
+        COMMENT "Copying lc7jtr plugin into app bundle"
+    )
+    IF(TARGET jtrdll_apple_silicon)
+        ADD_DEPENDENCIES(lc7jtr jtrdll_apple_silicon)
+        ADD_CUSTOM_COMMAND(TARGET lc7jtr POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:jtrdll_apple_silicon>"
+                "${CMAKE_BINARY_DIR}/dist/lc7.app/Contents/MacOS/lcplugins/lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}/jtrdll_apple-silicon.dylib"
+            COMMENT "Sync jtrdll_apple-silicon into app bundle (must match lc7jtr)"
+        )
+    ENDIF()
+ENDIF()
 
 ADD_PRECOMPILED_HEADER(lc7jtr stdafx lc7jtr_SOURCES)
