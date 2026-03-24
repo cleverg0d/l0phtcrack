@@ -172,7 +172,7 @@ void CLC7ExecuteJTR::Preflight(PREFLIGHT &preflight)
 
 	strcpy_s(hooks.appdatadir, sizeof(hooks.appdatadir), QDir::toNativeSeparators(appdatadir.absolutePath()).toUtf8().constData());
 
-	hooks.appdatadir[_MAX_PATH - 1] = 0;
+	hooks.appdatadir[sizeof(hooks.appdatadir) - 1] = 0;
 	hooks.caught_sigill = 0;
 	hooks.stdout_hook = null_stdout_hook;
 	hooks.stderr_hook = null_stderr_hook;
@@ -212,11 +212,19 @@ int CLC7ExecuteJTR::ExecuteWait(QString & out, QString &err)
 
 static void stdout_hook(void *ctx, const char *str)
 {
+	if (!ctx || !str)
+	{
+		return;
+	}
 	((ILC7ExecuteJTRHandler *)ctx)->ProcessStdOut(str);
 }
 
 static void stderr_hook(void *ctx, const char *str)
 {
+	if (!ctx || !str)
+	{
+		return;
+	}
 	((ILC7ExecuteJTRHandler *)ctx)->ProcessStdErr(str);
 }
 
@@ -252,7 +260,7 @@ int CLC7ExecuteJTR::ExecutePipe(ILC7ExecuteJTRHandler *handler)
 	
 	strcpy_s(hooks.appdatadir, sizeof(hooks.appdatadir), QDir::toNativeSeparators(appdatadir.absolutePath()).toUtf8().constData());
 
-	hooks.appdatadir[_MAX_PATH - 1] = 0;
+	hooks.appdatadir[sizeof(hooks.appdatadir) - 1] = 0;
 	hooks.caught_sigill = 0;
 	hooks.stdout_hook=stdout_hook;
 	hooks.stderr_hook=stderr_hook;

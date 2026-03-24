@@ -5,8 +5,10 @@
 
 #ifdef _MSC_VER
 #define STRDUP _strdup
+#define LC7_STRCPY_S(dst, sz, src) strcpy_s(dst, sz, src)
 #else
 #define STRDUP strdup
+#define LC7_STRCPY_S(dst, sz, src) do { strncpy(dst, src, (sz)-1); (dst)[(sz)-1] = '\0'; } while(0)
 #endif
 
 #define JTR_CACHE_VERSION 1
@@ -85,7 +87,11 @@ void CLC7ExecuteJTR::SetCommandLine(QStringList args, QString extra_opencl_kerne
 {TR;
 	QDir johndir(g_pLinkage->GetPluginsDirectory());
 	johndir.cd("lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}");
+#if (PLATFORM == PLATFORM_WIN32) || (PLATFORM == PLATFORM_WIN64)
 	QString command = QDir::toNativeSeparators(johndir.filePath("john.exe"));
+#else
+	QString command = QDir::toNativeSeparators(johndir.filePath("john"));
+#endif
 	
 	m_command=command;
 	m_args=args;
@@ -170,9 +176,9 @@ void CLC7ExecuteJTR::Preflight(PREFLIGHT &preflight)
 
 	appdatadir.mkdir("kernels");	
 
-	strcpy_s(hooks.appdatadir, sizeof(hooks.appdatadir), QDir::toNativeSeparators(appdatadir.absolutePath()).toUtf8().constData());
+	LC7_STRCPY_S(hooks.appdatadir, sizeof(hooks.appdatadir), QDir::toNativeSeparators(appdatadir.absolutePath()).toUtf8().constData());
 
-	hooks.appdatadir[_MAX_PATH - 1] = 0;
+	hooks.appdatadir[sizeof(hooks.appdatadir) - 1] = 0;
 	hooks.caught_sigill = 0;
 	hooks.stdout_hook = null_stdout_hook;
 	hooks.stderr_hook = null_stderr_hook;
@@ -212,11 +218,19 @@ int CLC7ExecuteJTR::ExecuteWait(QString & out, QString &err)
 
 static void stdout_hook(void *ctx, const char *str)
 {
+	if (!ctx || !str)
+	{
+		return;
+	}
 	((ILC7ExecuteJTRHandler *)ctx)->ProcessStdOut(str);
 }
 
 static void stderr_hook(void *ctx, const char *str)
 {
+	if (!ctx || !str)
+	{
+		return;
+	}
 	((ILC7ExecuteJTRHandler *)ctx)->ProcessStdErr(str);
 }
 
@@ -224,6 +238,7 @@ static void stderr_hook(void *ctx, const char *str)
 int CLC7ExecuteJTR::ExecutePipe(ILC7ExecuteJTRHandler *handler)
 {
 	int retval;
+#ifdef _MSC_VER
 	__try
 	{
 		retval = ExecutePipeGuarded(handler);
@@ -233,7 +248,17 @@ int CLC7ExecuteJTR::ExecutePipe(ILC7ExecuteJTRHandler *handler)
 		retval = 1;
 		m_illegal_instruction = true;
 	}
-
+#else
+	try
+	{
+		retval = ExecutePipeGuarded(handler);
+	}
+	catch (...)
+	{
+		retval = 1;
+		m_illegal_instruction = true;
+	}
+#endif
 	return retval;
 }
 
@@ -266,9 +291,9 @@ int CLC7ExecuteJTR::ExecutePipeGuarded(ILC7ExecuteJTRHandler *handler)
 
 	appdatadir.mkdir("kernels");
 	
-	strcpy_s(hooks.appdatadir, sizeof(hooks.appdatadir), QDir::toNativeSeparators(appdatadir.absolutePath()).toUtf8().constData());
+	LC7_STRCPY_S(hooks.appdatadir, sizeof(hooks.appdatadir), QDir::toNativeSeparators(appdatadir.absolutePath()).toUtf8().constData());
 
-	hooks.appdatadir[_MAX_PATH - 1] = 0;
+	hooks.appdatadir[sizeof(hooks.appdatadir) - 1] = 0;
 	hooks.caught_sigill = 0;
 	hooks.stdout_hook=stdout_hook;
 	hooks.stderr_hook=stderr_hook;
