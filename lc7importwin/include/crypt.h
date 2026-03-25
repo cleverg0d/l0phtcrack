@@ -2,20 +2,24 @@
 #define __INC_CRYPT_H
 
 #include <list>
+#ifdef _WIN32
 #include <windows.h>
 #include <Sddl.h>
 #include <Lmcons.h>
 #include <stdio.h>
-
 #define JET_VERSION 0x0502
 #include <esent.h>
+#else
+#include "win_compat.h"
+#include <stdio.h>
+#endif
 
-#include "openssl\aes.h"
-#include "openssl\des.h"
-#include "openssl\rc4.h"
-#include "openssl\md5.h"
-#include "openssl\sha.h"
-#include "openssl\hmac.h"
+#include <openssl/aes.h>
+#include <openssl/des.h>
+#include <openssl/rc4.h>
+#include <openssl/md5.h>
+#include <openssl/sha.h>
+#include <openssl/hmac.h>
 
 #include "utils.h"
 

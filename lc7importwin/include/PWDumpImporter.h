@@ -16,6 +16,7 @@ private:
 	bool IsNT(QStringList parts);
 	bool IsCR(QStringList parts);
 	bool ParseNT(QStringList parts, LC7Account & acct);
+	bool ParseShortNT(QStringList parts, LC7Account & acct);
 	bool ParseCR(QStringList parts, LC7Account & acct);
 
 public:

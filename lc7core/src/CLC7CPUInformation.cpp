@@ -1,6 +1,9 @@
 #include"stdafx.h"
 #include <signal.h>
+#if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
 #include <intrin.h>
+#define LC7_X86_CPU 1
+#endif
 
 CLC7CPUInformation::~CLC7CPUInformation()
 {
@@ -96,6 +99,8 @@ bool CLC7CPUInformation::_3DNOWEXT(void) { return CPU_Rep.isAMD_ && CPU_Rep.f_81
 bool CLC7CPUInformation::_3DNOW(void) { return CPU_Rep.isAMD_ && CPU_Rep.f_81_EDX_[31]; }
 bool CLC7CPUInformation::XMM_SAVED(void) { return CPU_Rep.f_1_ECX_[26] && CPU_Rep.f_bv_0_EAX_[1]; }
 bool CLC7CPUInformation::YMM_SAVED(void) { return CPU_Rep.f_1_ECX_[26] && CPU_Rep.f_bv_0_EAX_[2]; }
+
+#ifdef LC7_X86_CPU
 
 static void sigillhandler(int)
 {
@@ -249,6 +254,37 @@ CLC7CPUInformation::InstructionSet_Internal::InstructionSet_Internal():
 
 
 };
+
+#else // !LC7_X86_CPU
+
+// ARM/non-x86 stub: no x86 intrinsics available, all CPU features return false
+
+bool CLC7CPUInformation::InstructionSet_Internal::GetXGETBV(unsigned long long &bv0)
+{
+	bv0 = 0;
+	return false;
+}
+
+CLC7CPUInformation::InstructionSet_Internal::InstructionSet_Internal():
+	nIds_( 0 ),
+	nExIds_( 0 ),
+	isIntel_( false ),
+	isAMD_( false ),
+	f_1_ECX_( 0 ),
+	f_1_EDX_( 0 ),
+	f_7_EBX_( 0 ),
+	f_7_ECX_( 0 ),
+	f_81_ECX_( 0 ),
+	f_81_EDX_( 0 ),
+	data_(),
+	extdata_(),
+	f_bv_0_EAX_( 0 )
+{
+	vendor_ = "Apple";
+	brand_ = "Apple Silicon";
+}
+
+#endif // LC7_X86_CPU
 
 
 

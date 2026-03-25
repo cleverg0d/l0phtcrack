@@ -26,6 +26,7 @@ SET(lc7jtr_SOURCES
 	src/CTechniqueJTRBruteGUI.cpp
 	src/CTechniqueJTRDictionaryGUI.cpp
 	src/CTechniqueJTRFinalyseGUI.cpp
+	src/lc7_userinfo_wordlist.cpp
 	src/jtrnodeworker.cpp
 	src/jtrworker.cpp
 	src/linkage.cpp
@@ -64,6 +65,7 @@ SET(lc7jtr_HEADERS
 	include/CTechniqueJTRBruteGUI.h
 	include/CTechniqueJTRDictionaryGUI.h
 	include/CTechniqueJTRFinalyseGUI.h
+	include/lc7_userinfo_wordlist.h
 	include/jtrnodeworker.h
 	include/jtrworker.h
 	include/jtrexe_crashdump.h
@@ -88,11 +90,36 @@ IF(MSVC)
 ENDIF()
 
 ADD_LIBRARY(lc7jtr SHARED ${lc7jtr_SOURCES} ${lc7jtr_HEADERS} ${lc7jtr_UI_HEADERS} )
-#TARGET_LINK_LIBRARIES(lc7jtr)
+TARGET_LINK_LIBRARIES(lc7jtr lc7core)
 
 qt5_use_modules(lc7jtr Widgets)
 
 IF(APPLE)
+    SET(_LC7JTR_ID "lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}")
+    SET(_LC7JTR_JOHN_RUN "${CMAKE_BINARY_DIR}/dist/lcplugins/${_LC7JTR_ID}/john_run")
+    FIND_PROGRAM(LC7_RSYNC_EXECUTABLE rsync)
+    IF(LC7_RSYNC_EXECUTABLE)
+        ADD_CUSTOM_COMMAND(TARGET lc7jtr POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E rm -rf "${_LC7JTR_JOHN_RUN}"
+            COMMAND ${LC7_RSYNC_EXECUTABLE} -a --delete --exclude ztex/
+                "${CMAKE_SOURCE_DIR}/external/jtrdll/run/"
+                "${_LC7JTR_JOHN_RUN}/"
+            COMMAND /usr/bin/touch "${_LC7JTR_JOHN_RUN}/john"
+            COMMENT "Bundle John Jumbo run/ into plugin john_run (exclude ztex); stub john sets \$JOHN for john.conf"
+            VERBATIM
+        )
+    ELSE()
+        ADD_CUSTOM_COMMAND(TARGET lc7jtr POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E rm -rf "${_LC7JTR_JOHN_RUN}"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${CMAKE_SOURCE_DIR}/external/jtrdll/run"
+                "${_LC7JTR_JOHN_RUN}"
+            COMMAND ${CMAKE_COMMAND} -E rm -rf "${_LC7JTR_JOHN_RUN}/ztex"
+            COMMAND /usr/bin/touch "${_LC7JTR_JOHN_RUN}/john"
+            COMMENT "Bundle John Jumbo run/ into plugin john_run (no rsync: copy + drop ztex)"
+            VERBATIM
+        )
+    ENDIF()
     ADD_CUSTOM_COMMAND(TARGET lc7jtr POST_BUILD
         COMMAND install_name_tool
             -change "/opt/homebrew/opt/qt@5/lib/QtWidgets.framework/Versions/5/QtWidgets"
@@ -106,10 +133,10 @@ IF(APPLE)
     )
     ADD_CUSTOM_COMMAND(TARGET lc7jtr POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory
-            "${CMAKE_BINARY_DIR}/dist/lc7.app/Contents/MacOS/lcplugins/lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}"
+            "${CMAKE_BINARY_DIR}/dist/lc7.app/Contents/MacOS/lcplugins/${_LC7JTR_ID}"
         COMMAND ${CMAKE_COMMAND} -E copy
             "$<TARGET_FILE:lc7jtr>"
-            "${CMAKE_BINARY_DIR}/dist/lc7.app/Contents/MacOS/lcplugins/lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}/liblc7jtr.dylib"
+            "${CMAKE_BINARY_DIR}/dist/lc7.app/Contents/MacOS/lcplugins/${_LC7JTR_ID}/liblc7jtr.dylib"
         COMMENT "Copying lc7jtr plugin into app bundle"
     )
     IF(TARGET jtrdll_apple_silicon)
@@ -117,7 +144,7 @@ IF(APPLE)
         ADD_CUSTOM_COMMAND(TARGET lc7jtr POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE:jtrdll_apple_silicon>"
-                "${CMAKE_BINARY_DIR}/dist/lc7.app/Contents/MacOS/lcplugins/lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}/jtrdll_apple-silicon.dylib"
+                "${CMAKE_BINARY_DIR}/dist/lc7.app/Contents/MacOS/lcplugins/${_LC7JTR_ID}/jtrdll_apple-silicon.dylib"
             COMMENT "Sync jtrdll_apple-silicon into app bundle (must match lc7jtr)"
         )
     ENDIF()

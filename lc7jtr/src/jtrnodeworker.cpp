@@ -1,5 +1,7 @@
 #include"stdafx.h"
 
+#include"lc7_userinfo_wordlist.h"
+
 #if (PLATFORM == PLATFORM_WIN32) || (PLATFORM == PLATFORM_WIN64)
 #include<io.h>
 #include<fcntl.h>
@@ -8,7 +10,7 @@
 
 
 
-CJTRNodeWorker::CJTRNodeWorker(JTRWORKERCTX *ctx, JTRPASS *pass, int passnode, bool restore, QString potfilename, QString sessionfilename, QString hashesfilename) 
+CJTRNodeWorker::CJTRNodeWorker(JTRWORKERCTX *ctx, JTRPASS *pass, int passnode, bool restore, QString potfilename, QString sessionfilename, QString hashesfilename)
 {TR;
 	m_ctx = ctx;
 	m_pass=pass;
@@ -19,11 +21,11 @@ CJTRNodeWorker::CJTRNodeWorker(JTRWORKERCTX *ctx, JTRPASS *pass, int passnode, b
 	m_hashesfilename=hashesfilename;
 	m_is_error=false;
 	m_fallbackretry = false;
-	
+
 	m_exejtr = new CLC7ExecuteJTR(m_pass->nodes[m_passnode].jtrversion);
 }
- 
-CJTRNodeWorker::~CJTRNodeWorker() 
+
+CJTRNodeWorker::~CJTRNodeWorker()
 {TR;
 	delete m_exejtr;
 	m_exejtr = NULL;
@@ -54,7 +56,7 @@ bool CJTRNodeWorker::VerifyRestoreSession()
 	{
 		sessionargs.append(in.readLine());
 	}
-	
+
 	// Trim down to just args
 	if(sessionargs[0]=="REC4")
 	{
@@ -97,7 +99,7 @@ static QString ToShortName(QString path)
 		delete[] buffer;
 		return path;
 	}
-	
+
 	QString ret = QString::fromWCharArray(buffer);
 	delete[] buffer;
 	return ret;
@@ -114,7 +116,7 @@ bool CJTRNodeWorker::GenerateCommandLine(bool preflight)
 #endif
 //		<< "--skip-self-tests"
 		;
-	
+
 	if (!preflight)
 	{
 		m_args << QString("--session=%1").arg(QDir::toNativeSeparators(m_sessionfilename));
@@ -138,8 +140,19 @@ bool CJTRNodeWorker::GenerateCommandLine(bool preflight)
 
 	if (m_pass->jtrmode == "single")
 	{
-		m_args << QString("--single")
-			<< QString("--encoding=%1").arg("UTF-8");
+		/* Match former macOS hashcat-wrapper behavior: username/GECOS-derived base words
+		 * with suffix mutations, then John rule set "best64" (see john.conf). */
+		QString wl = QDir(m_ctx->m_temporary_dir).filePath(QString("userinfo_candidates_%1.txt").arg(m_passnode));
+		QString genErr;
+		if (!lc7WriteUserInfoWordlist(QDir::toNativeSeparators(m_hashesfilename),
+				QDir::toNativeSeparators(wl), &genErr))
+		{
+			set_error(genErr);
+			return false;
+		}
+		m_args << QString("--wordlist=%1").arg(QDir::toNativeSeparators(wl))
+			<< QString("--encoding=%1").arg(QStringLiteral("UTF-8"))
+			<< QString("--rules=%1").arg(QStringLiteral("best64"));
 	}
 	else if (m_pass->jtrmode == "wordlist")
 	{
@@ -177,11 +190,11 @@ bool CJTRNodeWorker::GenerateCommandLine(bool preflight)
 		Q_ASSERT(false);
 		return false;
 	}
-	
+
 	/*
-	
+
 	Don't bother doing time restriction here
-	
+
 	if (!m_ctx->m_duration_unlimited)
 	{
 		// Get total max run time in seconds
@@ -211,13 +224,14 @@ bool CJTRNodeWorker::GenerateCommandLine(bool preflight)
 bool CJTRNodeWorker::ExecuteJTRCommandLine()
 {
 	TR;
+	m_engine_stderr_tail.clear();
 
 	if (!m_exejtr->IsValid())
 	{
 		set_error("No version of the cracking engine is compatible with your system. Using a more modern CPU is required.");
 		return false;
 	}
-	
+
 	QString extra_opencl_kernel_args;
 	if (!CLC7JTR::SelfTest(m_pass->nodes[m_passnode].jtrversion,
 		m_pass->nodes[m_passnode].node_algorithm,
@@ -258,13 +272,17 @@ bool CJTRNodeWorker::ExecuteJTRCommandLine()
 				g_pLinkage->GetGUILinkage()->AppendToActivityLog(QString("Rejecting instruction set '%1'. Falling back...").arg(m_pass->nodes[m_passnode].jtrversion));
 				CLC7JTR::DisableInstructionSet(m_pass->nodes[m_passnode].jtrversion);
 				m_fallbackretry = true;
-			
+
 				return false;
 			}
 		}
 		if (!isInterruptionRequested())
 		{
-			set_error(QString("Error code: %1").arg(retval));
+			QString tail = m_engine_stderr_tail.trimmed();
+			if (!tail.isEmpty())
+				set_error(QString("Error code: %1\n%2").arg(retval).arg(tail));
+			else
+				set_error(QString("Error code: %1").arg(retval));
 			return false;
 		}
 	}
@@ -276,7 +294,8 @@ bool CJTRNodeWorker::preflight(CLC7ExecuteJTR::PREFLIGHT & preflight)
 {
 	if (!GenerateCommandLine(true))
 	{
-		set_error("Couldn't generate command line.");
+		if (!m_is_error)
+			set_error("Couldn't generate command line.");
 		return false;
 	}
 
@@ -326,14 +345,15 @@ bool CJTRNodeWorker::preflight(CLC7ExecuteJTR::PREFLIGHT & preflight)
 	return true;
 }
 
-void CJTRNodeWorker::run() 
+void CJTRNodeWorker::run()
 {TR;
 	if(!GenerateCommandLine(false))
 	{
-		set_error("Couldn't generate command line.");
+		if (!m_is_error)
+			set_error("Couldn't generate command line.");
 		return;
 	}
-	
+
 	// Verify restore session args
 	if(m_restore)
 	{
@@ -345,15 +365,15 @@ void CJTRNodeWorker::run()
 
 		// Restore is valid
 		m_args.clear();
-		m_args 
-			<< "--no-log" 
+		m_args
+			<< "--no-log"
 #ifdef _DEBUG
 			<< "--verbosity=5"
 #endif
 //			<< "--skip-self-tests"
 			<< QString("--restore=%1").arg(QDir::toNativeSeparators(m_sessionfilename));
 	}
-			
+
 	if(!ExecuteJTRCommandLine())
 	{
 		return;
@@ -364,12 +384,12 @@ void CJTRNodeWorker::stop(bool timeout)
 {TR;
 	requestInterruption();
 
-	// Tell JTR to stop
-	if (m_exejtr)
+	// Tell JTR to stop (only if the engine actually loaded successfully)
+	if (m_exejtr && m_exejtr->IsValid())
 	{
 		m_exejtr->Abort(timeout);
 	}
-	
+
 	wait();
 }
 
@@ -431,6 +451,73 @@ static QString filterPrintable(QString str)
 	return out;
 }
 
+static QString engineLogVerbosity()
+{
+	// Force compact output for now, until explicit UI toggle is added.
+	return "results_only";
+}
+
+static bool isResultLine(const QString &line)
+{
+	const QString l = line.toLower();
+	return l.contains("recovered") || l.contains("cracked") || l.contains("found");
+}
+
+static bool isStatusLine(const QString &line)
+{
+	const QString l = line.toLower();
+	return l.contains("eta") || l.contains("speed") || l.contains("progress") || l.contains("pass ");
+}
+
+static bool isDebugNoiseLine(const QString &line)
+{
+	const QString l = line.toLower();
+	return l.contains("opencl") || l.contains("platform") || l.contains("device #") ||
+		l.contains("kernel") || l.contains("loaded ") || l.contains("rules") ||
+		l.contains("using ") || l.contains("warning:");
+}
+
+static bool shouldShowEngineLine(const QString &line)
+{
+	const QString verbosity = engineLogVerbosity();
+	if (verbosity == "all")
+	{
+		return true;
+	}
+	if (verbosity == "status")
+	{
+		return isResultLine(line) || isStatusLine(line);
+	}
+
+	// results_only (default)
+	if (isDebugNoiseLine(line))
+	{
+		return false;
+	}
+	return isResultLine(line);
+}
+
+static QStringList extractRecoveredPairsFromChunk(const QString &chunk)
+{
+	QStringList pairs;
+	QSet<QString> seen;
+
+	QRegularExpression re_pair("([0-9A-Fa-f]{32,}:[^\\s\\[]+)");
+	QRegularExpressionMatchIterator it = re_pair.globalMatch(chunk);
+	while (it.hasNext())
+	{
+		QRegularExpressionMatch m = it.next();
+		QString token = m.captured(1).trimmed();
+		if (!token.isEmpty() && !seen.contains(token))
+		{
+			seen.insert(token);
+			pairs.append(token);
+		}
+	}
+
+	return pairs;
+}
+
 void CJTRNodeWorker::ProcessStdOut(QByteArray line)
 {
 	QString out = filterPrintable(QString::fromUtf8(line));
@@ -438,11 +525,20 @@ void CJTRNodeWorker::ProcessStdOut(QByteArray line)
 	{
 		return;
 	}
-	if (m_pass->nodes.size() > 1)
+	QStringList recovered = extractRecoveredPairsFromChunk(out);
+	foreach(QString rec, recovered)
 	{
-		out = QString("Node %1: ").arg(m_passnode + 1) + out;
+		QString msg = rec;
+		if (m_pass->nodes.size() > 1)
+		{
+			msg = QString("Node %1: ").arg(m_passnode + 1) + msg;
+		}
+		g_pLinkage->GetGUILinkage()->AppendToActivityLog(msg + "\n");
 	}
-	g_pLinkage->GetGUILinkage()->AppendToActivityLog(out);
+	if (recovered.isEmpty())
+	{
+		TRDBG(QString("JTR stdout suppressed: %1").arg(out.trimmed()).toUtf8().constData());
+	}
 }
 
 void CJTRNodeWorker::ProcessStdErr(QByteArray line)
@@ -452,9 +548,27 @@ void CJTRNodeWorker::ProcessStdErr(QByteArray line)
 	{
 		return;
 	}
-	if (m_pass->nodes.size() > 1)
+	QStringList recovered = extractRecoveredPairsFromChunk(err);
+	foreach(QString rec, recovered)
 	{
-		err = QString("Node %1: ").arg(m_passnode + 1) + err;
+		QString msg = rec;
+		if (m_pass->nodes.size() > 1)
+		{
+			msg = QString("Node %1: ").arg(m_passnode + 1) + msg;
+		}
+		g_pLinkage->GetGUILinkage()->AppendToActivityLog(msg + "\n");
 	}
-	g_pLinkage->GetGUILinkage()->AppendToActivityLog(err);
+	if (recovered.isEmpty())
+	{
+		QString t = err.trimmed();
+		if (!t.isEmpty())
+		{
+			m_engine_stderr_tail += t;
+			m_engine_stderr_tail += QLatin1Char('\n');
+			const int cap = 6000;
+			if (m_engine_stderr_tail.size() > cap)
+				m_engine_stderr_tail = m_engine_stderr_tail.right(cap);
+		}
+		TRDBG(QString("JTR stderr suppressed: %1").arg(err.trimmed()).toUtf8().constData());
+	}
 }

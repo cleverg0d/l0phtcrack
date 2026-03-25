@@ -68,7 +68,7 @@ void WIN::_ReportStatusError(QString errortext, bool silent)
 	TRDBG(outmsg.toUtf8());
 
 #else
-	UNIMPLEMENTED;
+	QString outmsg = errortext;
 #endif
 
 	if(!silent)

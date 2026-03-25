@@ -1,14 +1,18 @@
 #include "utils.h"
 
 // BSWAP a DWORD
-DWORD BSWAP(DWORD n) 
+DWORD BSWAP(DWORD n)
 {
+#ifdef _WIN32
 	return _byteswap_ulong(n);
+#else
+	return __builtin_bswap32(n);
+#endif
 }
 
-
+#ifdef _WIN32
 // Adjust token privilege with specific privilege
-bool SetPrivilege(const wchar_t *szPrivilege) 
+bool SetPrivilege(const wchar_t *szPrivilege)
 {
 	TOKEN_PRIVILEGES tp;
 	HANDLE hToken;
@@ -48,8 +52,9 @@ bool SetSeRestorePrivilege() {
 bool SetSeBackupPrivilege() {
 	return SetPrivilege(SE_BACKUP_NAME);
 }
+#endif // _WIN32
 
-
+#ifdef _WIN32
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //														REGISTRY FUNC
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -79,6 +84,7 @@ bool RegGetValueEx(HKEY hKeyReg, LPSTR keyName, LPSTR valueName, LPDWORD type, L
 
 	return false;
 }
+#endif // _WIN32
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

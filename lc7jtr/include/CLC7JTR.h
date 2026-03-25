@@ -57,6 +57,7 @@ public:
 	static bool DecodeGPUINFOVector(QVariant givar, QVector<LC7GPUInfo> &gpuinfo);
 
 	static QStringList GetSupportedInstructionSets(bool include_disabled = false);
+	static QString GetDefaultJtrDllVersion();
 	static QVector<LC7GPUInfo> GetSupportedGPUInfo(bool include_disabled = false);
 	static void DisableInstructionSet(QString jtrdllversion);
 	static bool GetSupportsUnmaskedGPU(fourcc hashtype);

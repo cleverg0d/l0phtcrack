@@ -8,12 +8,14 @@ CLC7JTRPlugin::CLC7JTRPlugin()
 	m_pTechniqueJTRSingleGUI = NULL;
 	m_pTechniqueJTRBruteGUI = NULL;
 	m_pTechniqueJTRDictionaryGUI = NULL;
+	m_pTechniqueJTRFinalyseGUI = NULL;
 	m_pTechniqueCat = NULL;
 	m_pBaseCat = NULL;
 	m_pSystemCat = NULL;
 	m_pSingleAct = NULL;
 	m_pBruteAct = NULL;
 	m_pDictionaryAct = NULL;
+	m_pFinalyseAct = NULL;
 	m_pSettingsAct = NULL;
 	m_pCalibrateAct = NULL;
 
@@ -195,6 +197,47 @@ static void defineRulePreset(ILC7PresetGroup *rules, QUuid uuid, QString name, Q
 	preset->setConfig(config);
 }
 
+static QString findBundledWordlistsDir()
+{
+	QStringList candidates;
+	QDir startup(g_pLinkage->GetStartupDirectory());
+	candidates << startup.absoluteFilePath("wordlists");
+	candidates << startup.absoluteFilePath("common/wordlists");
+	candidates << startup.absoluteFilePath("../Resources/wordlists");
+	candidates << startup.absoluteFilePath("../Resources/common/wordlists");
+	candidates << QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("../../../dist/common/common/wordlists");
+	foreach(QString candidate, candidates)
+	{
+		QDir d(candidate);
+		if (d.exists())
+		{
+			return d.absolutePath();
+		}
+	}
+	return startup.absoluteFilePath("wordlists");
+}
+
+static QString findBundledRuleFile(const QString &ruleFileName)
+{
+	QStringList candidates;
+	QDir startup(g_pLinkage->GetStartupDirectory());
+	candidates << startup.absoluteFilePath(QString("rules/%1").arg(ruleFileName));
+	candidates << startup.absoluteFilePath(QString("common/rules/%1").arg(ruleFileName));
+	candidates << startup.absoluteFilePath(QString("../Resources/rules/%1").arg(ruleFileName));
+	candidates << startup.absoluteFilePath(QString("../Resources/common/rules/%1").arg(ruleFileName));
+	candidates << startup.absoluteFilePath(QString("lcplugins/lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}/rules/%1").arg(ruleFileName));
+	candidates << QDir(QCoreApplication::applicationDirPath()).absoluteFilePath(QString("../../../dist/common/common/rules/%1").arg(ruleFileName));
+	candidates << QString("/usr/local/share/doc/hashcat/rules/%1").arg(ruleFileName);
+	foreach(QString candidate, candidates)
+	{
+		if (QFileInfo(candidate).exists())
+		{
+			return QDir::toNativeSeparators(candidate);
+		}
+	}
+	return ruleFileName;
+}
+
 
 
 static void defineWordlistPreset(ILC7PresetGroup *wordlist, QUuid uuid, QString name, QString desc, QUuid encoding, QString wordlistfile, QUuid rule, bool leet, int hours, int minutes)
@@ -321,6 +364,7 @@ void CLC7JTRPlugin::CreatePresetGroups(void)
 	defineRulePreset(rules, UUID_RULE_EXTRA, "Extra", "Extra rules, including case toggling for up to 7 letters.", "Extra");
 	defineRulePreset(rules, UUID_RULE_NT, "NT", "NT-style 14 character case toggler.", "NT");
 	defineRulePreset(rules, UUID_RULE_NONE, "None", "No permutations. Just try the words directly.", "None");
+	defineRulePreset(rules, UUID_RULE_BUKA_400K, "buka_400k", "buka_400k hashcat-style mutations", findBundledRuleFile("buka_400k.rule"));
 
 	// Wordlist presets
 	ILC7PresetGroup *wordlist = manager->presetGroup(QString("%1:dictionary_presets").arg(UUID_LC7JTRPLUGIN.toString()));
@@ -329,8 +373,7 @@ void CLC7JTRPlugin::CreatePresetGroups(void)
 		wordlist = manager->newPresetGroup(QString("%1:dictionary_presets").arg(UUID_LC7JTRPLUGIN.toString()));
 	}
 
-	QDir wordlists(g_pLinkage->GetStartupDirectory());
-	wordlists.cd("wordlists");
+	QDir wordlists(findBundledWordlistsDir());
 	QString wbig = wordlists.absoluteFilePath("wordlist-big.txt");
 	QString whuge = wordlists.absoluteFilePath("wordlist-huge.txt");
 	QString wmedium = wordlists.absoluteFilePath("wordlist-medium.txt");
@@ -353,6 +396,7 @@ bool CLC7JTRPlugin::Activate()
 	m_pTechniqueJTRSingleGUI = new CTechniqueJTRSingleGUI();
 	m_pTechniqueJTRBruteGUI = new CTechniqueJTRBruteGUI();
 	m_pTechniqueJTRDictionaryGUI = new CTechniqueJTRDictionaryGUI();
+	m_pTechniqueJTRFinalyseGUI = new CTechniqueJTRFinalyseGUI();
 	
 	bool bSuccess=true;
 	bSuccess &= g_pLinkage->AddComponent(m_pSystemJTR);
@@ -360,6 +404,7 @@ bool CLC7JTRPlugin::Activate()
 	bSuccess &= g_pLinkage->AddComponent(m_pTechniqueJTRSingleGUI);
 	bSuccess &= g_pLinkage->AddComponent(m_pTechniqueJTRBruteGUI);
 	bSuccess &= g_pLinkage->AddComponent(m_pTechniqueJTRDictionaryGUI);
+	bSuccess &= g_pLinkage->AddComponent(m_pTechniqueJTRFinalyseGUI);
 
 	if (!bSuccess)
 	{
@@ -382,6 +427,9 @@ bool CLC7JTRPlugin::Activate()
 	m_pDictionaryAct = m_pBaseCat->CreateAction(m_pTechniqueJTRDictionaryGUI->GetID(), "gui", QStringList(),
 		"Dictionary",
 		"Use word lists or variations on words in a wordlist to recover account passwords. Good for common passwords.");
+	m_pFinalyseAct = m_pBaseCat->CreateAction(m_pTechniqueJTRFinalyseGUI->GetID(), "gui", QStringList(),
+		"Finalyse",
+		"Use all previously recovered passwords and apply buka_400k rule mutations.");
 
 	m_pSettingsAct = m_pSystemCat->CreateAction(m_pSystemJTR->GetID(), "get_options", QStringList(),
 		"JtR Cracking Engine",
@@ -519,6 +567,11 @@ bool CLC7JTRPlugin::Deactivate()
 		m_pBaseCat->RemoveAction(m_pDictionaryAct);
 		m_pDictionaryAct = NULL;
 	}
+	if (m_pFinalyseAct)
+	{
+		m_pBaseCat->RemoveAction(m_pFinalyseAct);
+		m_pFinalyseAct = NULL;
+	}
 	if (m_pBaseCat)
 	{
 		m_pTechniqueCat->RemoveActionCategory(m_pBaseCat);
@@ -558,6 +611,12 @@ bool CLC7JTRPlugin::Deactivate()
 		g_pLinkage->RemoveComponent(m_pTechniqueJTRDictionaryGUI);
 		delete m_pTechniqueJTRDictionaryGUI;
 		m_pTechniqueJTRDictionaryGUI = NULL;
+	}
+	if (m_pTechniqueJTRFinalyseGUI)
+	{
+		g_pLinkage->RemoveComponent(m_pTechniqueJTRFinalyseGUI);
+		delete m_pTechniqueJTRFinalyseGUI;
+		m_pTechniqueJTRFinalyseGUI = NULL;
 	}
 
 	return true;

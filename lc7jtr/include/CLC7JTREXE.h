@@ -18,6 +18,8 @@ private:
 
 #ifdef _WIN32
 	typedef HANDLE PIPETYPE;
+#else
+	typedef int PIPETYPE;
 #endif
 
 	QByteArray RequestCommand(QString cmdstr);

@@ -125,6 +125,12 @@ void LC7Main::closeEvent (QCloseEvent *evt)
 		}
 	}
 
+	ILC7Settings *settings = m_ctrl->GetSettings();
+	settings->setValue("_ui_:window_geometry", saveGeometry());
+	settings->setValue("_ui_:window_state", saveState());
+	settings->setValue("_ui_:window_was_maximized", isMaximized());
+	settings->setValue("_ui_:window_was_fullscreen", isFullScreen());
+
 	evt->accept();
 }
 
@@ -175,6 +181,22 @@ void LC7Main::Startup()
 	m_pColorManager->ReloadSettings();
 
 	UpdateUI();
+
+	ILC7Settings *settings = m_ctrl->GetSettings();
+	QByteArray savedGeometry = settings->value("_ui_:window_geometry").toByteArray();
+	QByteArray savedState = settings->value("_ui_:window_state").toByteArray();
+	if (!savedGeometry.isEmpty())
+	{
+		restoreGeometry(savedGeometry);
+	}
+	else
+	{
+		resize(1400, 900);
+	}
+	if (!savedState.isEmpty())
+	{
+		restoreState(savedState);
+	}
 }
 
 void LC7Main::Shutdown(void)
@@ -483,7 +505,9 @@ void LC7Main::UpdateUI()
 #ifndef DISABLE_UPDATER
 	m_action_check_for_updates->setEnabled(!m_updater.isRunning());
 #endif
+#if (PLATFORM == PLATFORM_WIN32) || (PLATFORM == PLATFORM_WIN64)
 	m_action_fullscreen->setChecked(windowState() & Qt::WindowFullScreen);
+#endif
 
 	m_menu_recent_sessions->setEnabled(m_menu_recent_sessions->actions().size() != 0);
 }
@@ -1287,12 +1311,20 @@ void LC7Main::slot_asyncProc(QSemaphore *s, QString function, QVariant args)
 		}
 		else
 		{
-			QFileDialog qfd(NULL, title, starting_folder);
-			qfd.setNameFilters(filter.split(";"));
+			ILC7Settings *settings = m_ctrl->GetSettings();
+			QString lastDir = settings->value("_ui_:last_browse_dir", "").toString();
+			QString effectiveStartFolder = (!lastDir.isEmpty() && QDir(lastDir).exists()) ? lastDir : starting_folder;
+			QFileDialog qfd(NULL, title, effectiveStartFolder);
+			if (!filter.isEmpty())
+				qfd.setNameFilters(filter.split(";"));
+#ifdef Q_OS_MAC
+			qfd.setOption(QFileDialog::DontUseNativeDialog);
+#else
 			if (CLC7App::getInstance()->GetAttachServer().isListening())
 			{
 				qfd.setOption(QFileDialog::DontUseNativeDialog);
 			}
+#endif
 
 			qfd.setAcceptMode(QFileDialog::AcceptOpen);
 			qfd.setFileMode(QFileDialog::ExistingFile);
@@ -1311,6 +1343,11 @@ void LC7Main::slot_asyncProc(QSemaphore *s, QString function, QVariant args)
 				else
 				{
 					*filepath = files.first();
+					QFileInfo fi(*filepath);
+					if (fi.dir().exists())
+					{
+						settings->setValue("_ui_:last_browse_dir", fi.dir().absolutePath());
+					}
 					*ret = true;
 				}
 			}
@@ -1339,12 +1376,20 @@ void LC7Main::slot_asyncProc(QSemaphore *s, QString function, QVariant args)
 		}
 		else
 		{
-			QFileDialog qfd(NULL, title, starting_folder);
-			qfd.setNameFilters(filter.split(";"));
+			ILC7Settings *settings = m_ctrl->GetSettings();
+			QString lastDir = settings->value("_ui_:last_browse_dir", "").toString();
+			QString effectiveStartFolder = (!lastDir.isEmpty() && QDir(lastDir).exists()) ? lastDir : starting_folder;
+			QFileDialog qfd(NULL, title, effectiveStartFolder);
+			if (!filter.isEmpty())
+				qfd.setNameFilters(filter.split(";"));
+#ifdef Q_OS_MAC
+			qfd.setOption(QFileDialog::DontUseNativeDialog);
+#else
 			if (CLC7App::getInstance()->GetAttachServer().isListening())
 			{
 				qfd.setOption(QFileDialog::DontUseNativeDialog);
 			}
+#endif
 
 			qfd.setAcceptMode(QFileDialog::AcceptOpen);
 			qfd.setFileMode(QFileDialog::ExistingFiles);
@@ -1356,6 +1401,14 @@ void LC7Main::slot_asyncProc(QSemaphore *s, QString function, QVariant args)
 			if (res)
 			{
 				*paths = qfd.selectedFiles();
+				if (!paths->isEmpty())
+				{
+					QFileInfo fi(paths->first());
+					if (fi.dir().exists())
+					{
+						settings->setValue("_ui_:last_browse_dir", fi.dir().absolutePath());
+					}
+				}
 				*ret = true;
 			}
 			else
@@ -1383,15 +1436,23 @@ void LC7Main::slot_asyncProc(QSemaphore *s, QString function, QVariant args)
 		}
 		else
 		{
-			QFileDialog qfd(NULL, title, starting_folder);
-			qfd.setNameFilters(filter.split(";"));
+			ILC7Settings *settings = m_ctrl->GetSettings();
+			QString lastDir = settings->value("_ui_:last_browse_dir", "").toString();
+			QString effectiveStartFolder = (!lastDir.isEmpty() && QDir(lastDir).exists()) ? lastDir : starting_folder;
+			QFileDialog qfd(NULL, title, effectiveStartFolder);
+			if (!filter.isEmpty())
+				qfd.setNameFilters(filter.split(";"));
+#ifdef Q_OS_MAC
+			qfd.setOption(QFileDialog::DontUseNativeDialog);
+#else
 			if (CLC7App::getInstance()->GetAttachServer().isListening())
 			{
 				qfd.setOption(QFileDialog::DontUseNativeDialog);
 			}
+#endif
 
 			qfd.setAcceptMode(QFileDialog::AcceptSave);
-			qfd.setFileMode(QFileDialog::ExistingFile);
+			qfd.setFileMode(QFileDialog::AnyFile);
 			qfd.setViewMode(QFileDialog::Detail);
 			qfd.setModal(true);
 			ShadeUI(true);
@@ -1407,6 +1468,11 @@ void LC7Main::slot_asyncProc(QSemaphore *s, QString function, QVariant args)
 				else
 				{
 					*filepath = files.first();
+					QFileInfo fi(*filepath);
+					if (fi.dir().exists())
+					{
+						settings->setValue("_ui_:last_browse_dir", fi.dir().absolutePath());
+					}
 					*ret = true;
 				}
 			}
@@ -1434,16 +1500,28 @@ void LC7Main::slot_asyncProc(QSemaphore *s, QString function, QVariant args)
 		}
 		else
 		{
+			ILC7Settings *settings = m_ctrl->GetSettings();
+			QString lastDir = settings->value("_ui_:last_browse_dir", "").toString();
+			QString effectiveStartFolder = (!lastDir.isEmpty() && QDir(lastDir).exists()) ? lastDir : starting_folder;
 			ShadeUI(true);
+#ifdef Q_OS_MAC
+			QFileDialog::Options dirOpts = QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks | QFileDialog::DontUseNativeDialog;
+#else
+			QFileDialog::Options dirOpts = QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks;
+#endif
 			QString directory = QFileDialog::getExistingDirectory(this,
 				title,
-				starting_folder,
-				QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+				effectiveStartFolder,
+				dirOpts);
 			ShadeUI(false);
 
 			if (!directory.isNull() && !directory.isEmpty())
 			{
 				*filepath = directory;
+				if (QDir(directory).exists())
+				{
+					settings->setValue("_ui_:last_browse_dir", directory);
+				}
 				*ret = true;
 			}
 			else
@@ -1546,7 +1624,7 @@ void LC7Main::slot_singleApplicationMessageReceived(const QString &message)
 
 		DoExecuteTask(taskid, true);
 	}
-	if (message.startsWith("RUN:"))
+	else if (message.startsWith("RUN:"))
 	{
 		QString sessionfile = message.mid(4);
 		DoExecuteManualTask(sessionfile, true);
@@ -1556,6 +1634,13 @@ void LC7Main::slot_singleApplicationMessageReceived(const QString &message)
 		QString sessionfile = message.mid(5);
 
 		DoOpenSession(sessionfile);
+	}
+	else if (message == QStringLiteral("ACTIVATE"))
+	{
+		setWindowState(windowState() & ~Qt::WindowMinimized);
+		showNormal();
+		raise();
+		activateWindow();
 	}
 }
 

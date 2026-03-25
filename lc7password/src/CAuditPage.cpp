@@ -14,6 +14,12 @@ public:
 };
 */
 
+static void auditDiag(const QString &s)
+{
+	QByteArray b = s.toUtf8();
+	LC7DiagnosticLog(b.constData());
+}
+
 CAuditPage::CAuditPage(QWidget *parent)
 	: QWidget(parent)
 {
@@ -52,6 +58,12 @@ CAuditPage::CAuditPage(QWidget *parent)
 
 	m_helpbutton=g_pLinkage->GetGUILinkage()->GetHelpButton();
 	connect(m_helpbutton, &QAbstractButton::clicked, this, &CAuditPage::slot_helpButtonClicked);
+
+	// Connect once: tree is recreated in RefreshContent but QWidget is stable. Duplicate connects here caused
+	// multiple slot invocations and hard-to-debug crashes when selecting Audit techniques User Info and others.
+	connect(ui.Tree, &QAbstractItemView::entered, this, &CAuditPage::onTreeEntered);
+	connect(ui.Tree, &QAbstractItemView::viewportEntered, this, &CAuditPage::onTreeViewportEntered);
+	ui.Tree->setMouseTracking(true);
 
 	UpdateUI();
 }
@@ -253,6 +265,10 @@ void CAuditPage::RefreshContent()
 
 			if(m_technique_tree_model)
 			{
+				if (QItemSelectionModel *oldSel = ui.Tree->selectionModel())
+				{
+					disconnect(oldSel, &QItemSelectionModel::currentChanged, this, &CAuditPage::onTreeCurrentChanged);
+				}
 				ui.Tree->setModel(NULL);
 				delete m_technique_tree_model;
 				m_technique_tree_model=NULL;
@@ -279,11 +295,8 @@ void CAuditPage::RefreshContent()
 			//ui.Tree->setColumnWidth(i,64);
 			//ui.Tree->header()->setSectionResizeMode(i,QHeaderView::Fixed);
 			
-			connect(ui.Tree,&QAbstractItemView::entered,this,&CAuditPage::onTreeEntered);
-			connect(ui.Tree,&QAbstractItemView::viewportEntered,this,&CAuditPage::onTreeViewportEntered);
-			connect(ui.Tree->selectionModel(),&QItemSelectionModel::currentChanged,this,&CAuditPage::onTreeCurrentChanged);
-			ui.Tree->setMouseTracking(true);
-			
+			connect(ui.Tree->selectionModel(), &QItemSelectionModel::currentChanged, this, &CAuditPage::onTreeCurrentChanged);
+
 			ui.Tree->expandAll();
 
 			ui.OptionsView->setWidget(new QWidget());
@@ -332,22 +345,42 @@ void CAuditPage::onTreeEntered(const QModelIndex &selected)
 
 void CAuditPage::onTreeCurrentChanged(const QModelIndex &selected, const QModelIndex &deselected)
 {TR;
+	auditDiag(QStringLiteral("CAuditPage::onTreeCurrentChanged valid=%1 row=%2 col=%3")
+		.arg(selected.isValid()).arg(selected.row()).arg(selected.column()));
+
 	setDescriptionText(selected);
 
 	ILC7Action *act=(ILC7Action *)selected.data(257).toULongLong();
 	if(act)
 	{
+		auditDiag(QStringLiteral("CAuditPage::action name=\"%1\" command=\"%2\" componentId=%3")
+			.arg(act->Name(), act->Command(), act->ComponentId().toString()));
+
 		QMap<QString,QVariant> config;
 		QString error;
 
 		ILC7Component *comp = g_pLinkage->FindComponentByID(act->ComponentId());
-		
+		if (!comp)
+		{
+			auditDiag(QStringLiteral("CAuditPage::FindComponentByID NULL componentId=%1").arg(act->ComponentId().toString()));
+			g_pLinkage->GetGUILinkage()->ErrorMessage(
+				"Audit",
+				QString("Internal error: component for action \"%1\" is not loaded (plugin missing or failed to start).").arg(act->Name()));
+			ui.OptionsView->setWidget(new QWidget());
+			UpdateUI();
+			return;
+		}
+
+		auditDiag(QStringLiteral("CAuditPage::ExecuteCommand create begin"));
 		config["pagewidget"] = QVariant((qulonglong)this);
 		if(comp->ExecuteCommand(act->Command(), QStringList("create"), config, error)!=ILC7Component::SUCCESS)
 		{
+			auditDiag(QStringLiteral("CAuditPage::ExecuteCommand create FAIL: %1").arg(error));
 			g_pLinkage->GetGUILinkage()->ErrorMessage("Error during audit",error);
 			return;
 		}
+		auditDiag(QStringLiteral("CAuditPage::ExecuteCommand create OK widget=%1")
+			.arg(config.value(QStringLiteral("widget")).toULongLong()));
 		config.remove("pagewidget");
 	
 		QWidget *widget=(QWidget *)config["widget"].toULongLong();
@@ -382,7 +415,12 @@ void CAuditPage::onAddQueueButton(bool checked)
 	QMap<QString,QVariant> config;
 	QString error;
 	ILC7Component *comp = g_pLinkage->FindComponentByID(act->ComponentId());
-	
+	if (!comp)
+	{
+		g_pLinkage->GetGUILinkage()->ErrorMessage("Audit", QString("Component for \"%1\" is not loaded.").arg(act->Name()));
+		return;
+	}
+
 	config["widget"]=(qulonglong)(ui.OptionsView->widget());
 	if(comp->ExecuteCommand(act->Command(), QStringList("store"), config, error)!=ILC7Component::SUCCESS)
 	{
@@ -430,7 +468,12 @@ void CAuditPage::onRunButton(bool checked)
 	QString error;
 
 	ILC7Component *comp = g_pLinkage->FindComponentByID(act->ComponentId());
-	
+	if (!comp)
+	{
+		g_pLinkage->GetGUILinkage()->ErrorMessage("Audit", QString("Component for \"%1\" is not loaded.").arg(act->Name()));
+		return;
+	}
+
 	config["widget"] = (qulonglong)(ui.OptionsView->widget());
 	if(comp->ExecuteCommand(act->Command(), QStringList("store"), config,error)!=ILC7Component::SUCCESS)
 	{

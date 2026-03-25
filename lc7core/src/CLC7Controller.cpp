@@ -1,5 +1,7 @@
 #include <stdafx.h>
+#ifdef _WIN32
 #include<io.h>
+#endif
 #include<sys/stat.h>
 #include"keychain.h"
 using namespace QKeychain;
@@ -870,7 +872,11 @@ bool CLC7Controller::Startup(QStringList active_client_modes)
 
 
 	int oldmode;
+#ifdef _WIN32
 	_umask_s(0, &oldmode);
+#else
+	oldmode = umask(0);
+#endif
 
 	m_active_client_modes = active_client_modes;
 
@@ -925,7 +931,11 @@ bool CLC7Controller::Startup(QStringList active_client_modes)
 
 	if (!m_historical_data->Initialize(error))
 	{
+#if (PLATFORM == PLATFORM_WIN32) || (PLATFORM == PLATFORM_WIN64)
 		m_pGUILinkage->WarningMessage("Failed to initialize", QString("The historical data function could not be initialized.\n\nYou may need to reinstall L0phtCrack due to a corrupted installation.\n\n%1").arg(error));
+#else
+		qWarning() << "Historical data initialization failed (non-critical):" << error;
+#endif
 	}
 
 	bool presets_ok = true;

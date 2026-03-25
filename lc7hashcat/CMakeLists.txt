@@ -25,6 +25,8 @@ SET(lc7jtr_SOURCES
 	src/CTechniqueJTRSingleGUI.cpp
 	src/CTechniqueJTRBruteGUI.cpp
 	src/CTechniqueJTRDictionaryGUI.cpp
+	src/CTechniqueJTRFinalyseGUI.cpp
+	src/lc7_userinfo_wordlist.cpp
 	src/jtrnodeworker.cpp
 	src/jtrworker.cpp
 	src/linkage.cpp
@@ -65,6 +67,8 @@ SET(lc7jtr_HEADERS
 	include/CTechniqueJTRSingleGUI.h
 	include/CTechniqueJTRBruteGUI.h
 	include/CTechniqueJTRDictionaryGUI.h
+	include/CTechniqueJTRFinalyseGUI.h
+	include/lc7_userinfo_wordlist.h
 	include/jtrnodeworker.h
 	include/jtrworker.h
 	include/jtrexe_crashdump.h

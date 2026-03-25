@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "LC7Main.h"
 #include <math.h>
+#include <cstdio>
 
 #if (PLATFORM == PLATFORM_WIN32) || (PLATFORM == PLATFORM_WIN64)
 #include"crtdbg.h"
@@ -15,7 +16,7 @@ void InstallCrashRpt(void)
 	_set_FMA3_enable(0);
 #endif
 
-#ifndef _DEBUG
+#if ((PLATFORM == PLATFORM_WIN32) || (PLATFORM == PLATFORM_WIN64)) && !defined(_DEBUG)
 	 // Install crash reporting
 
     CR_INSTALL_INFO info;
@@ -27,14 +28,14 @@ void InstallCrashRpt(void)
 	info.pszEmailSubject = "L0phtCrack 7 v" VERSION_STRING " Error Report"; // Email subject
 	info.uMiniDumpType = (MINIDUMP_TYPE) (MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpWithProcessThreadData | MiniDumpWithThreadInfo);
     info.pszEmailTo = "crashdump@l0phtcrack.com";   // Email recipient address
-	info.pszSmtpProxy = "mailproxy.l0phtcrack.com:465"; // SMTP Server 
+	info.pszSmtpProxy = "mailproxy.l0phtcrack.com:465"; // SMTP Server
 	info.uPriorities[CR_HTTP]=CR_NEGATIVE_PRIORITY;
 	info.uPriorities[CR_SMTP]=2;
 	info.uPriorities[CR_SMAPI]=1;
 
     // Install crash handlers
-    int nInstResult = crInstall(&info);            
-	
+    int nInstResult = crInstall(&info);
+
 	// Check result
     Q_ASSERT(nInstResult==0);
 
@@ -42,8 +43,6 @@ void InstallCrashRpt(void)
 	{
 		g_CrashRptInstalled=true;
 	}
-#else
-
 #endif
 }
 
@@ -73,7 +72,10 @@ void RedirectIOToConsole()
 }
 
 #else
-#error implement me
+void RedirectIOToConsole()
+{
+    // No-op on non-Windows platforms; output goes to terminal by default
+}
 #endif
 
 
@@ -115,9 +117,15 @@ int main(int argc, char *argv[])
 		{
 			return !app.sendMessage("OPEN:" + parser.positionalArguments()[0]);
 		}
-		
-		// Else the program is running as a task and needs to be brought to the foreground, which will happen with the activation window
-		return true;
+
+		/* Finder / Dock second launch: primary instance must be pinged or it looks like "nothing happens". */
+		if (!app.sendMessage(QStringLiteral("ACTIVATE"), 5000))
+		{
+			std::fprintf(stderr,
+				"LC7: no response from the running instance (stale lock?). Quit LC7 or run: pkill lc7\n");
+			std::fflush(stderr);
+		}
+		return 0;
 	}
 	
 	InstallCrashRpt();

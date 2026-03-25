@@ -55,6 +55,12 @@ void CLC7WizardPage::CreateConfigWidget(QUuid widgetuuid, QMap<QString, QVariant
 {
 	m_configComponent = g_pLinkage->FindComponentByID(widgetuuid);
 
+	if (!m_configComponent)
+	{
+		m_configWidget = new QLabel(tr("Not available on this platform"));
+		return;
+	}
+
 	config["pagewidget"] = (qulonglong)this;
 	QStringList args;
 	args << "create";
@@ -70,6 +76,9 @@ void CLC7WizardPage::CreateConfigWidget(QUuid widgetuuid, QMap<QString, QVariant
 
 QMap<QString, QVariant> CLC7WizardPage::GetConfig()
 {
+	if (!m_configComponent)
+		return QMap<QString, QVariant>();
+
 	QMap<QString, QVariant> config;
 	config["widget"] = (qulonglong)m_configWidget;
 

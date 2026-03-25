@@ -35,6 +35,7 @@ ENDIF()
 
 SET(lc7core_SOURCES 
 	src/stdafx.cpp
+	src/lc7diagnosticlog.cpp
 	src/CLC7Action.cpp
 	src/CLC7ActionCategory.cpp
 	src/CLC7CommandControl.cpp
@@ -60,6 +61,7 @@ SET(lc7core_SOURCES
 
 SET(lc7core_HEADERS
 	include/stdafx.h
+	include/lc7diagnosticlog.h
 	include/CLC7Action.h
 	include/CLC7ActionCategory.h
 	include/CLC7CommandControl.h

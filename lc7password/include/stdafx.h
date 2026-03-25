@@ -45,3 +45,7 @@
 #include"CLC7CalibrationTable.h"
 #include"CLC7CalibrateGUI.h"
 #include"CFireWidget.h"
+
+#ifndef ENSURE_GUI_THREAD
+#define ENSURE_GUI_THREAD Q_ASSERT(QThread::currentThread() == QCoreApplication::instance()->thread())
+#endif

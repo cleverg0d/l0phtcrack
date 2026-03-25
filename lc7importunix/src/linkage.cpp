@@ -30,6 +30,7 @@ DLLEXPORT bool Unregister(void)
 }
 
 
+#ifdef _WIN32
 BOOL WINAPI DllMain(
   HANDLE hinstDLL,
   DWORD dwReason,
@@ -38,9 +39,10 @@ BOOL WINAPI DllMain(
 {
 	if(dwReason==DLL_PROCESS_ATTACH)
 	{
-	
+
 	}
 
 	return TRUE;
 }
+#endif
 

@@ -360,7 +360,7 @@ void CJTRWorker::StartNode(JTRPASS &pass, int passnode)
 {TR;
 	QDir tempdir(m_ctx->m_temporary_dir);
 	QString potfilename=tempdir.filePath(tempdir.filePath("pot"));
-	QString sessionfilename=tempdir.filePath(QString("session.%1").arg(passnode));
+	QString sessionfilename=tempdir.filePath(QString("session.%1x").arg(passnode));
 	QString hashesfilename=tempdir.filePath(QString("hashes"));
 	
 	if(m_ctx->m_restore && !tempdir.exists(sessionfilename+".rec"))
@@ -422,6 +422,15 @@ QString CJTRWorker::format_speed(unsigned long long count)
 		suffix="T";
 	}
 	return QString("%1%2").arg(cnt,0,'f',3).arg(suffix);
+}
+
+static QString formatTelemetryValue(unsigned int value, const QString &suffix)
+{
+	if (value == 0)
+	{
+		return QString("N/A");
+	}
+	return QString("%1%2").arg(value).arg(suffix);
 }
 
 JTRSTATUS CJTRWorker::get_status()
@@ -648,6 +657,10 @@ JTRSTATUS CJTRWorker::get_status()
 				arg(total_status.guesses_per_second).
 				arg(total_status.candidates_per_second).
 				arg(total_status.combinations_per_second);
+			jtrstatus.details += QString("  Util:%1 Temp:%2 Fan:%3")
+				.arg(formatTelemetryValue(total_status.utilization, "%"))
+				.arg(formatTelemetryValue(total_status.temperature, "C"))
+				.arg(formatTelemetryValue(total_status.fanspeed, "RPM"));
 
 			jtrstatus.percent_done=total_status.percent;
 			jtrstatus.secs_total = total_status.time;

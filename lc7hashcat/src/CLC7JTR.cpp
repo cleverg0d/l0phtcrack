@@ -1430,7 +1430,12 @@ void CLC7JTR::ProcessStatus(void)
 		//m_ctrl->AppendToActivityLog(status+"\n");
 	//}
 
-	m_ctrl->SetStatusText(status.status);
+	QString status_line = status.status;
+	if (!status.details.trimmed().isEmpty())
+	{
+		status_line += " | " + status.details.trimmed();
+	}
+	m_ctrl->SetStatusText(status_line);
 	m_ctrl->UpdateCurrentProgressBar((quint32)status.percent_done);
 
 	// xxx figure out how to detect if cracks are partial. (full hash exists for two halves account?)
@@ -1458,6 +1463,7 @@ void CLC7JTR::ProcessStatus(void)
 					lc7hash.cracktype = m_config["name"].toString();
 
 					m_accountlist->ReplaceAccountAt(acctnum.first, acct);
+					m_ctrl->AppendToActivityLog(QString("%1:%2\n").arg(acct.username, lc7hash.password));
 				}
 				else if (lc7hash.crackstate == CRACKSTATE_NOT_CRACKED)
 				{
@@ -1490,6 +1496,7 @@ void CLC7JTR::ProcessStatus(void)
 					lc7hash.cracktype = m_config["name"].toString();
 
 					m_accountlist->ReplaceAccountAt(acctnum.first, acct);
+					m_ctrl->AppendToActivityLog(QString("%1:%2\n").arg(acct.username, lc7hash.password));
 				}
 				else if (lc7hash.crackstate == CRACKSTATE_NOT_CRACKED)
 				{
@@ -1523,6 +1530,7 @@ void CLC7JTR::ProcessStatus(void)
 					lc7hash.cracktype = m_config["name"].toString();
 					
 					m_accountlist->ReplaceAccountAt(acctnum.first, acct);
+					m_ctrl->AppendToActivityLog(QString("%1:%2\n").arg(acct.username, lc7hash.password));
 				}
 				/*
 				else if (acct.crackstate == CRACKSTATE_NOT_CRACKED)

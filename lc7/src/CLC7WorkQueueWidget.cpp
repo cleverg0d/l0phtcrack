@@ -57,6 +57,15 @@ CLC7WorkQueueWidget::CLC7WorkQueueWidget(QWidget *parent, ILC7Controller *ctrl) 
 	connect(&m_append_to_activity_log_later_timer, &QTimer::timeout, this, &CLC7WorkQueueWidget::slot_append_to_activity_log_later);
 	m_append_to_activity_log_later = false;
 
+	m_pending_current_progress = 0;
+	m_pending_total_progress = 0;
+	m_last_current_progress = 0;
+	m_last_total_progress = 0;
+	m_has_pending_progress = false;
+	m_progress_update_timer.setInterval(150);
+	m_progress_update_timer.setSingleShot(true);
+	connect(&m_progress_update_timer, &QTimer::timeout, this, &CLC7WorkQueueWidget::slot_flushProgressBars);
+
 	// Set up system monitor
 	QTimer::singleShot(0, this, &CLC7WorkQueueWidget::slot_createSystemMonitor);
 
@@ -176,6 +185,82 @@ static QColor lightnessrotate(int n, int d, QColor col)
 	return QColor::fromHsl(h, s, l);
 }
 
+static bool looksLikeHashcatNoiseChunk(const QString &text)
+{
+	const QString l = text.toLower();
+	return l.contains("hashcat (v") ||
+		l.contains("initializing bridges") ||
+		l.contains("backend devices") ||
+		l.contains("[s]tatus [p]ause [b]ypass") ||
+		l.contains("session..........:");
+}
+
+static bool isHashcatNoiseLine(const QString &line)
+{
+	const QString l = line.toLower();
+	return l.contains("you have enabled --force") ||
+		l.contains("do not report hashcat") ||
+		l.contains("minimum password length supported") ||
+		l.contains("maximum password length supported") ||
+		l.contains("counting lines in ") ||
+		l.contains("parsed hashes:") ||
+		l.contains("sorting hashes.") ||
+		l.contains("removing duplicate hashes.") ||
+		l.contains("sorting salts.") ||
+		l.contains("comparing hashes with potfile") ||
+		l.contains("generating bitmap tables") ||
+		l.contains("loading rules.") ||
+		l.contains("optimizers applied:") ||
+		l.contains("watchdog:") ||
+		l.contains("starting autotune.") ||
+		l.contains("status...........:") ||
+		l.contains("hash.mode........:") ||
+		l.contains("hash.target......:") ||
+		l.contains("time.started.....:") ||
+		l.contains("time.estimated...:") ||
+		l.contains("kernel.feature...:") ||
+		l.contains("guess.base.......:") ||
+		l.contains("guess.mod........:") ||
+		l.contains("guess.queue......:") ||
+		l.contains("speed.#") ||
+		l.contains("recovered........:") ||
+		l.contains("progress.........:") ||
+		l.contains("rejected.........:") ||
+		l.contains("restore.point....:") ||
+		l.contains("restore.sub.#") ||
+		l.contains("candidate.engine.:") ||
+		l.contains("candidates.#") ||
+		l.contains("hardware.mon") ||
+		l.contains("started:") ||
+		l.contains("stopped:") ||
+		l.contains("hashcat (v");
+}
+
+static bool isRecoveredHashPasswordLine(const QString &line)
+{
+	QRegularExpression re_pair("^\\s*[0-9A-Fa-f]{32,}:[^\\s\\[]+\\s*$");
+	return re_pair.match(line).hasMatch();
+}
+
+static QString extractRecoveredOnly(const QString &text)
+{
+	QString out;
+	QSet<QString> seen;
+	QRegularExpression pairRe("([0-9A-Fa-f]{32,}:[^\\s\\[]+)");
+	QRegularExpressionMatchIterator it = pairRe.globalMatch(text);
+	while (it.hasNext())
+	{
+		QRegularExpressionMatch m = it.next();
+		QString token = m.captured(1).trimmed();
+		if (!token.isEmpty() && !seen.contains(token))
+		{
+			seen.insert(token);
+			out += token + "\n";
+		}
+	}
+	return out;
+}
+
 void CLC7WorkQueueWidget::CreateSystemMonitor(void)
 {
 	m_ctrl->GetThermalWatchdog()->RegisterNotifyThermalTransition(this, (void (QObject::*)(ILC7ThermalWatchdog::THERMAL_STATE, ILC7ThermalWatchdog::THERMAL_STATE))&CLC7WorkQueueWidget::NotifyThermalTransition);
@@ -241,7 +326,11 @@ void CLC7WorkQueueWidget::CreateSystemMonitor(void)
 		}
 		else
 		{
-			m_ctrl->GetGUILinkage()->GetWorkQueueWidget()->AppendToActivityLog("Couldn't access WMI to get CPU statistics. Enable the 'Windows Instrumentation Management' service to get CPU utilization information.");
+#if (PLATFORM == PLATFORM_WIN32) || (PLATFORM == PLATFORM_WIN64)
+			m_ctrl->GetGUILinkage()->GetWorkQueueWidget()->AppendToActivityLog("CPU telemetry unavailable. Ensure the 'Windows Instrumentation Management' service is running.");
+#else
+			m_ctrl->GetGUILinkage()->GetWorkQueueWidget()->AppendToActivityLog("CPU telemetry unavailable on this platform. Showing N/A where metrics are not exposed.");
+#endif
 		}
 	}
 
@@ -377,6 +466,17 @@ void CLC7WorkQueueWidget::UpdateSystemMonitor(void)
 				}
 			}
 		}
+		else
+		{
+			for (int cpu = 0; cpu < m_cpu_progressbars.size(); cpu++)
+			{
+				m_cpu_progressbars[cpu].oldtime = m_cpu_progressbars[cpu].newtime;
+				m_cpu_progressbars[cpu].oldval = m_cpu_progressbars[cpu].newval;
+				m_cpu_progressbars[cpu].newtime = m_sysmon_elapsed.elapsed() + 1000;
+				m_cpu_progressbars[cpu].newval = 0;
+				m_cpuprog->setBarToolTip(m_cpu_progressbars[cpu].barid, "N/A");
+			}
+		}
 	}
 
 	if (m_gpuprog != NULL)
@@ -423,6 +523,17 @@ void CLC7WorkQueueWidget::UpdateSystemMonitor(void)
 						.arg(gpustats[gpu].fanspeed_rpm));
 					}
 				}
+			}
+		}
+		else
+		{
+			for (int gpubar = 0; gpubar < m_gpu_progressbars.size(); gpubar++)
+			{
+				m_gpu_progressbars[gpubar].oldtime = m_gpu_progressbars[gpubar].newtime;
+				m_gpu_progressbars[gpubar].oldval = m_gpu_progressbars[gpubar].newval;
+				m_gpu_progressbars[gpubar].newtime = m_sysmon_elapsed.elapsed() + 1000;
+				m_gpu_progressbars[gpubar].newval = 0;
+				m_gpuprog->setBarToolTip(m_gpu_progressbars[gpubar].barid, "N/A");
 			}
 		}
 	}
@@ -704,6 +815,44 @@ void CLC7WorkQueueWidget::appendLine(QString strdate, QString strtime, QString l
 
 void CLC7WorkQueueWidget::AppendToActivityLog(QString text)
 {
+	if (looksLikeHashcatNoiseChunk(text))
+	{
+		QString recoveredOnly = extractRecoveredOnly(text);
+		if (recoveredOnly.isEmpty())
+		{
+			return;
+		}
+		text = recoveredOnly;
+	}
+	else
+	{
+		QStringList filtered;
+		QStringList lines = text.split("\n");
+		foreach(QString line, lines)
+		{
+			QString trimmed = line.trimmed();
+			if (trimmed.isEmpty())
+			{
+				continue;
+			}
+			if (isHashcatNoiseLine(trimmed))
+			{
+				continue;
+			}
+			if (isRecoveredHashPasswordLine(trimmed))
+			{
+				// These are raw hash:password entries, we emit username:password separately.
+				continue;
+			}
+			filtered.append(line);
+		}
+		if (filtered.isEmpty())
+		{
+			return;
+		}
+		text = filtered.join("\n") + "\n";
+	}
+
 	QMutexLocker lock(&m_appendStringLock);
 
 	// split on newlines
@@ -855,12 +1004,51 @@ void CLC7WorkQueueWidget::slot_setStatusText(QString status)
 
 void CLC7WorkQueueWidget::slot_updateCurrentProgressBar(quint32 cur)
 {
-	ui.currentCompletionProgress->setValue(cur);
+	if (cur < m_last_current_progress && m_last_current_progress >= 5 && cur <= 1)
+	{
+		cur = m_last_current_progress;
+	}
+	m_pending_current_progress = qMin<quint32>(100, cur);
+	m_has_pending_progress = true;
+	if (!m_progress_update_timer.isActive() || m_pending_current_progress == 100)
+	{
+		m_progress_update_timer.start();
+	}
 }
 
 void CLC7WorkQueueWidget::slot_updateTotalProgressBar(quint32 cur)
 {
-	ui.totalCompletionProgress->setValue(cur);
+	if (cur < m_last_total_progress && m_last_total_progress >= 5 && cur <= 1)
+	{
+		cur = m_last_total_progress;
+	}
+	m_pending_total_progress = qMin<quint32>(100, cur);
+	m_has_pending_progress = true;
+	if (!m_progress_update_timer.isActive() || m_pending_total_progress == 100)
+	{
+		m_progress_update_timer.start();
+	}
+}
+
+void CLC7WorkQueueWidget::slot_flushProgressBars(void)
+{
+	if (!m_has_pending_progress)
+	{
+		return;
+	}
+
+	if (m_pending_current_progress >= m_last_current_progress || m_pending_current_progress == 0)
+	{
+		ui.currentCompletionProgress->setValue(m_pending_current_progress);
+		m_last_current_progress = m_pending_current_progress;
+	}
+	if (m_pending_total_progress >= m_last_total_progress || m_pending_total_progress == 0)
+	{
+		ui.totalCompletionProgress->setValue(m_pending_total_progress);
+		m_last_total_progress = m_pending_total_progress;
+	}
+
+	m_has_pending_progress = false;
 }
 
 bool CLC7WorkQueueWidget::Save(QDataStream & ds)
@@ -981,9 +1169,13 @@ bool CLC7WorkQueueWidget::Load(QDataStream & ds)
 	int v;
 	ds >> v;
 	ui.currentCompletionProgress->setValue(v);
+	m_last_current_progress = v;
+	m_pending_current_progress = v;
 
 	ds >> v;
 	ui.totalCompletionProgress->setValue(v);
+	m_last_total_progress = v;
+	m_pending_total_progress = v;
 
 	ds >> s;
 	ui.currentOperation->setText(s);
@@ -1000,6 +1192,11 @@ void CLC7WorkQueueWidget::Reset(void)
 	m_status_document->setHtml("");
 	ui.currentCompletionProgress->setValue(0);
 	ui.totalCompletionProgress->setValue(0);
+	m_last_current_progress = 0;
+	m_last_total_progress = 0;
+	m_pending_current_progress = 0;
+	m_pending_total_progress = 0;
+	m_has_pending_progress = false;
 	ui.currentOperation->setText("");
 
 	m_last_strdate = "";
@@ -1007,7 +1204,8 @@ void CLC7WorkQueueWidget::Reset(void)
 	// Print banner
 	QString appname = " L0phtCrack 7 - v" VERSION_STRING " ";
 	QString underline = QString("-").repeated(appname.length());
-	AppendToActivityLog(appname + "\n" + underline + "\n\n");
+	QString buildstamp = QString(" Build: %1 %2 ").arg(__DATE__).arg(__TIME__);
+	AppendToActivityLog(appname + "\n" + underline + "\n" + buildstamp + "\n\n");
 }
 
 void CLC7WorkQueueWidget::NotifyThermalTransition(ILC7ThermalWatchdog::THERMAL_STATE oldstate, ILC7ThermalWatchdog::THERMAL_STATE newstate)

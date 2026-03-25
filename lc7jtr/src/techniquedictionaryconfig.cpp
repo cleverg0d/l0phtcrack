@@ -1,6 +1,46 @@
 #include "stdafx.h"
 #include "techniqueDictionaryconfig.h"
 
+static QString findBundledWordlistsDir()
+{
+	QStringList candidates;
+	QDir startup(g_pLinkage->GetStartupDirectory());
+	candidates << startup.absoluteFilePath("wordlists");
+	candidates << startup.absoluteFilePath("common/wordlists");
+	candidates << startup.absoluteFilePath("../Resources/wordlists");
+	candidates << startup.absoluteFilePath("../Resources/common/wordlists");
+	candidates << QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("../../../dist/common/common/wordlists");
+	foreach (const QString &candidate, candidates)
+	{
+		QDir d(candidate);
+		if (d.exists())
+		{
+			return d.absolutePath();
+		}
+	}
+	return startup.absoluteFilePath("wordlists");
+}
+
+static QString repairBundledWordlistPath(const QString &currentPath)
+{
+	if (currentPath.isEmpty() || QFileInfo(currentPath).exists())
+	{
+		return currentPath;
+	}
+
+	QDir bundled(findBundledWordlistsDir());
+	const QString fileName = QFileInfo(currentPath).fileName();
+	if (fileName.startsWith("wordlist-") && fileName.endsWith(".txt"))
+	{
+		const QString candidate = bundled.absoluteFilePath(fileName);
+		if (QFileInfo(candidate).exists())
+		{
+			return QDir::toNativeSeparators(candidate);
+		}
+	}
+	return currentPath;
+}
+
 
 TechniqueDictionaryConfig::TechniqueDictionaryConfig()
 {TR;
@@ -34,8 +74,7 @@ void TechniqueDictionaryConfig::setConfig(QVariant config)
 
 	if (m_config.isEmpty())
 	{
-		QDir wordlists(g_pLinkage->GetStartupDirectory());
-		wordlists.cd("wordlists");
+		QDir wordlists(findBundledWordlistsDir());
 		QString big = wordlists.absoluteFilePath("wordlist-big.txt");
 
 		m_config["encoding"] = UUID_ENCODING_ISO_8859_1;
@@ -44,6 +83,10 @@ void TechniqueDictionaryConfig::setConfig(QVariant config)
 		m_config["duration_unlimited"] = true;
 		m_config["duration_hours"] = 1;
 		m_config["duration_minutes"] = 0;
+	}
+	else
+	{
+		m_config["wordlist"] = repairBundledWordlistPath(m_config["wordlist"].toString());
 	}
 
 	RefreshContent();
@@ -66,8 +109,7 @@ void TechniqueDictionaryConfig::slot_browseWordlistButton_clicked(bool checked)
 	QString startpath;
 	if (m_config["wordlist"].toString().isEmpty())
 	{
-		QDir wordlists(g_pLinkage->GetPluginsDirectory());
-		wordlists.cd("wordlists");
+		QDir wordlists(findBundledWordlistsDir());
 		startpath = wordlists.absolutePath();
 	}
 	else
@@ -146,6 +188,7 @@ void TechniqueDictionaryConfig::RefreshContent()
 	ILC7PasswordLinkage *passlink = GET_ILC7PASSWORDLINKAGE(g_pLinkage);
 	ILC7ColorManager *colman = g_pLinkage->GetGUILinkage()->GetColorManager();
 
+	m_config["wordlist"] = repairBundledWordlistPath(m_config["wordlist"].toString());
 	ui.wordListEdit->setText(QDir::toNativeSeparators(QString("%1").arg(m_config["wordlist"].toString())));
 
 	ui.unlimitedCheckBox->setChecked(m_config["duration_unlimited"].toBool());

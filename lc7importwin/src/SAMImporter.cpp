@@ -38,8 +38,6 @@ bool SAMImporter::DoImport(QString sam_filename, QString system_filename, QStrin
 {
 	TR;
 
-	HKEY sam_start_key = HKEY_LOCAL_MACHINE;
-
 	struct hive *sam_hive = open_hive(QDir::toNativeSeparators(sam_filename).toLocal8Bit().constData(), HMODE_RO);
 	if (sam_hive == NULL)
 	{

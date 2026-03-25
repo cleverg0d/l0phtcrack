@@ -25,9 +25,14 @@ QUuid CTechniqueJTRBruteGUI::GetID()
 
 ILC7Component::RETURNCODE CTechniqueJTRBruteGUI::ExecuteCommand(QString command, QStringList args, QMap<QString, QVariant> & config, QString & error, ILC7CommandControl *ctrl)
 {TR;
-	if(command=="gui" && args[0]=="create")
+	if(command=="gui" && args.size()>=1 && args[0]=="create")
 	{
 		QWidget *page=(QWidget *)(config["pagewidget"].toULongLong());
+		if (!page)
+		{
+			error = QStringLiteral("Audit UI error: missing page widget (internal).");
+			return FAIL;
+		}
 
 		QWidget *configwidget = new TechniqueBruteConfig();
 		
@@ -37,7 +42,7 @@ ILC7Component::RETURNCODE CTechniqueJTRBruteGUI::ExecuteCommand(QString command,
 
 		return SUCCESS;
 	}
-	else if(command=="gui" && args[0]=="store")
+	else if(command=="gui" && args.size()>=1 && args[0]=="store")
 	{
 		// Get preset widget
 		QWidget *presetwidget = (QWidget *)(config["widget"].toULongLong());
@@ -58,7 +63,7 @@ ILC7Component::RETURNCODE CTechniqueJTRBruteGUI::ExecuteCommand(QString command,
 
 		return SUCCESS;
 	}
-	else if(command=="gui" && args[0]=="queue")
+	else if(command=="gui" && args.size()>=1 && args[0]=="queue")
 	{
 		ILC7WorkQueue *pwq=(ILC7WorkQueue *)(config["workqueue"].toULongLong());
 		config.remove("workqueue");

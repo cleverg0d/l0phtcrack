@@ -3,6 +3,13 @@
 
 #include "libssh2.h"
 
+#ifndef _WIN32
+#ifndef _SOCKET_DEFINED
+typedef int SOCKET;
+#define _SOCKET_DEFINED
+#endif
+#endif
+
 class UnixSSHImporter
 {
 public:

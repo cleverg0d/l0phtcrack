@@ -154,9 +154,9 @@ ILC7Preset *CLC7PresetGroup::presetAt(int pos)
 
 	if (!m_presets_by_id.contains(preset_id))
 	{
-		return false;
+		return nullptr;
 	}
-		
+
 
 	return m_presets_by_id[preset_id];
 }

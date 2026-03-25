@@ -780,11 +780,15 @@ bool CLC7PluginRegistry::HasCircularDependencies(CLC7PluginLibrary *lib)
 		
 		foreach(CLC7PluginLibrary * plug, next)
 		{
+			if (!plug)
+				continue;
 			visited.insert(plug);
 
 			foreach(ILC7PluginLibrary::Dependency dep, plug->GetDependencies())
 			{
-				CLC7PluginLibrary *depplug=m_library_by_internal_name[dep.m_internal_name];
+				CLC7PluginLibrary *depplug=m_library_by_internal_name.value(dep.m_internal_name, nullptr);
+				if (!depplug)
+					continue;
 				if(visited.contains(depplug))
 				{
 					return true;

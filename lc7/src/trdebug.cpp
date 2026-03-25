@@ -1,6 +1,6 @@
 #include"stdafx.h"
 #include<stdio.h>
-#include<QtZlib/zlib.h>
+#include<zlib.h>
 
 #define UNCOMPRESSED 0
 

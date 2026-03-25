@@ -5,14 +5,16 @@ CLC7ImportWinPlugin::CLC7ImportWinPlugin()
 {TR;
 	m_pImportSAM=NULL;
 	m_pImportSAMGUI = NULL;
-	m_pImportNTDS = NULL;
-	m_pImportNTDSGUI = NULL;
 	m_pImportPWDump = NULL;
 	m_pImportPWDumpGUI = NULL;
+	m_pImportNTDS = NULL;
+	m_pImportNTDSGUI = NULL;
+#ifndef __APPLE__
 	m_pImportWinRemote = NULL;
 	m_pImportWinRemoteGUI = NULL;
 	m_pImportWinLocal = NULL;
 	m_pImportWinLocalGUI = NULL;
+#endif
 	m_pImportCat = NULL;
 	m_pLocalCat = NULL;
 	m_pRemoteCat = NULL;
@@ -68,10 +70,12 @@ bool CLC7ImportWinPlugin::Activate()
 {	
 	m_use_chalresp = g_pLinkage->GetSettings()->value(UUID_IMPORTWINPLUGIN.toString() + ":enable_chalresp").toBool();
 
+#ifndef __APPLE__
 	m_pImportWinRemote=new CImportWindowsRemote();
 	m_pImportWinRemoteGUI=new CImportWindowsRemoteGUI();
 	m_pImportWinLocal=new CImportWindowsLocal();
 	m_pImportWinLocalGUI=new CImportWindowsLocalGUI();
+#endif
 	m_pImportPWDump=new CImportPWDump();
 	m_pImportPWDumpGUI = new CImportPWDumpGUI();
 	m_pImportSAM = new CImportSAM();
@@ -80,10 +84,12 @@ bool CLC7ImportWinPlugin::Activate()
 	m_pImportNTDSGUI = new CImportNTDSGUI();
 
 	bool bSuccess=true;
+#ifndef __APPLE__
 	bSuccess &= g_pLinkage->AddComponent(m_pImportWinRemote);
 	bSuccess &= g_pLinkage->AddComponent(m_pImportWinRemoteGUI);
 	bSuccess &= g_pLinkage->AddComponent(m_pImportWinLocal);
 	bSuccess &= g_pLinkage->AddComponent(m_pImportWinLocalGUI);
+#endif
 	bSuccess &= g_pLinkage->AddComponent(m_pImportPWDump);
 	bSuccess &= g_pLinkage->AddComponent(m_pImportPWDumpGUI);
 	bSuccess &= g_pLinkage->AddComponent(m_pImportSAM);
@@ -104,10 +110,13 @@ bool CLC7ImportWinPlugin::Activate()
 
 
 	m_pImportCat = g_pLinkage->CreateActionCategory("import","Import","Import password hashes to audit");
+#ifndef __APPLE__
 	m_pLocalCat = m_pImportCat->CreateActionCategory("local","Local","Import from local machine");
 	m_pRemoteCat = m_pImportCat->CreateActionCategory("remote","Remote","Import from remote machine");
+#endif
 	m_pFileCat = m_pImportCat->CreateActionCategory("file", "File", "Import from file");
 
+#ifndef __APPLE__
 	m_pLocalImportAct = m_pLocalCat->CreateAction(m_pImportWinLocalGUI->GetID(), "gui", QStringList(),
 		"Import from local Windows system",
 		"Import password hashes from this Windows system. Imports local accounts only unless this system is a domain controller.");
@@ -115,7 +124,8 @@ bool CLC7ImportWinPlugin::Activate()
 	m_pRemoteImportAct = m_pRemoteCat->CreateAction(m_pImportWinRemoteGUI->GetID(), "gui", QStringList(),
 		"Import from remote Windows system",
 		"Import password hashes from another Windows system. Imports local accounts only unless the chosen system is a domain controller.");
-	
+#endif
+
 	m_pFileImportAct = m_pFileCat->CreateAction(m_pImportPWDumpGUI->GetID(), "gui", QStringList(),
 		"Import from PWDump file",
 		"Import password hashes from a Windows PWDump format file. Imports Windows LM/NTLM hashes from pwdump, fgdump or others. Also supports 'colon format' files for sniffed challenge/reponse output for LM, NTLM, LMv2 and NTLMv2 negotiations. This is compatible with output from Spiderlabs Responder, and other similar sniffers.");
@@ -128,12 +138,14 @@ bool CLC7ImportWinPlugin::Activate()
 		"Import from NTDS.DIT/SYSTEM files",
 		"Import Windows domain user password hashes from a Windows NTDS.DIT file and SYSTEM registry backup. ");
 
+#ifndef __APPLE__
 	m_pCommandsCat = g_pLinkage->CreateActionCategory("commands", "Commands", "Commands And Utilities");
 	m_pGenerateRemoteAgentAct = m_pCommandsCat->CreateAction(m_pImportWinRemoteGUI->GetID(), "generateremoteagent", QStringList(),
 		"Generate Remote Agent",
 		"Create an agent with installation instructions for manual installation on a target system.");
 
 	g_pLinkage->GetGUILinkage()->AddTopMenuItem(m_pGenerateRemoteAgentAct);
+#endif
 
 	// Register account types we can import
 	ILC7PasswordLinkage *passlink = GET_ILC7PASSWORDLINKAGE(g_pLinkage);
@@ -206,14 +218,15 @@ bool CLC7ImportWinPlugin::Deactivate()
 				m_pFileCat->RemoveAction(m_pSAMImportAct);
 				m_pSAMImportAct = NULL;
 			}
-			if (m_pNTDSImportAct)
-			{
-				m_pFileCat->RemoveAction(m_pNTDSImportAct);
-				m_pNTDSImportAct = NULL;
-			}
+		if (m_pNTDSImportAct)
+		{
+			m_pFileCat->RemoveAction(m_pNTDSImportAct);
+			m_pNTDSImportAct = NULL;
+		}
 			m_pImportCat->RemoveActionCategory(m_pFileCat);
 			m_pFileCat = NULL;
 		}
+#ifndef __APPLE__
 		if (m_pLocalCat)
 		{
 			if (m_pLocalImportAct)
@@ -234,11 +247,13 @@ bool CLC7ImportWinPlugin::Deactivate()
 			m_pImportCat->RemoveActionCategory(m_pRemoteCat);
 			m_pRemoteCat = NULL;
 		}
+#endif
 
 		g_pLinkage->RemoveActionCategory(m_pImportCat);
 		m_pImportCat = NULL;
 	}
 
+#ifndef __APPLE__
 	if (m_pCommandsCat)
 	{
 		if (m_pGenerateRemoteAgentAct)
@@ -251,6 +266,7 @@ bool CLC7ImportWinPlugin::Deactivate()
 		g_pLinkage->RemoveActionCategory(m_pCommandsCat);
 		m_pCommandsCat = NULL;
 	}
+#endif
 
 	if (m_pImportSAM)
 	{
@@ -288,6 +304,7 @@ bool CLC7ImportWinPlugin::Deactivate()
 		delete m_pImportPWDumpGUI;
 		m_pImportPWDumpGUI = NULL;
 	}
+#ifndef __APPLE__
 	if (m_pImportWinRemote)
 	{
 		g_pLinkage->RemoveComponent(m_pImportWinRemote);
@@ -312,6 +329,7 @@ bool CLC7ImportWinPlugin::Deactivate()
 		delete m_pImportWinLocalGUI;
 		m_pImportWinLocalGUI = NULL;
 	}
+#endif
 
 	if (m_pWindowsImportSettings)
 	{

@@ -34,6 +34,7 @@ DLLEXPORT bool Unregister(void)
 }
 
 
+#ifdef _WIN32
 BOOL WINAPI DllMain(
   HANDLE hinstDLL,
   DWORD dwReason,
@@ -48,4 +49,12 @@ BOOL WINAPI DllMain(
 
 	return TRUE;
 }
+#else
+__attribute__((constructor))
+static void lc7importwin_init(void)
+{
+	OpenSSL_add_all_ciphers();
+	ERR_load_crypto_strings();
+}
+#endif
 

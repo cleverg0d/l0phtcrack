@@ -2,6 +2,7 @@
 #define __INC_JTRWORKER_H
 
 #include<QThread>
+#include<QSemaphore>
 
 #include "CLC7JTRGPUManager.h"
 
@@ -123,7 +124,7 @@ private:
 	JTRSTATUS m_previous_last_status;
 	ILC7AccountList *m_accountlist;
 	
-	HANDLE m_workerDoneEvent;
+	QSemaphore m_workerDoneEvent;
 
 protected:
 	QString format_speed(unsigned long long count);

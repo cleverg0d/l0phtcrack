@@ -1116,7 +1116,8 @@ QProgressBar {
 }
 
 QProgressBar::chunk {
-    background-color: ##PROGRESS_BKGD##;
+    background-color: ##HIGHLIGHT_BKGD##;
+    border: 1px solid ##HIGHLIGHT_CONTROL_BORDER##;
 }
 
 

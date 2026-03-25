@@ -2,9 +2,9 @@
 #define __INC_APPVERSION_H
 
 // EXTERNAL: These are modified by an external script
-#define VERSION_NUMBER "7.2.1"
-#define VERSION_DATE "20211018"
-#define VERSION_TIME "181012"
+#define VERSION_NUMBER "7.3.0"
+#define VERSION_DATE "20250324"
+#define VERSION_TIME "000000"
 // END_EXTERNAL
 
 #if (PLATFORM == PLATFORM_WIN64) 
@@ -26,6 +26,24 @@
 	#define VERSION_STRING VERSION_NUMBER " Win32 DEBUG " VERSION_DATE VERSION_TIME
 	#else
 	#define VERSION_STRING VERSION_NUMBER " Win32"
+	#endif
+#endif
+
+#if (PLATFORM == PLATFORM_MACOSX)
+	#define PLATFORM_NAME "macOS"
+	#if defined(_DEBUG)
+	#define VERSION_STRING VERSION_NUMBER " macOS DEBUG " VERSION_DATE VERSION_TIME
+	#else
+	#define VERSION_STRING VERSION_NUMBER " macOS"
+	#endif
+#endif
+
+#if (PLATFORM == PLATFORM_LINUX)
+	#define PLATFORM_NAME "Linux"
+	#if defined(_DEBUG)
+	#define VERSION_STRING VERSION_NUMBER " Linux DEBUG " VERSION_DATE VERSION_TIME
+	#else
+	#define VERSION_STRING VERSION_NUMBER " Linux"
 	#endif
 #endif
 

@@ -8,6 +8,7 @@
 #include"CTechniqueJTRSingleGUI.h"
 #include"CTechniqueJTRBruteGUI.h"
 #include"CTechniqueJTRDictionaryGUI.h"
+#include"CTechniqueJTRFinalyseGUI.h"
 #include"CLC7JTRPasswordEngine.h"
 
 class CLC7JTRPlugin:public QObject, public ILC7Plugin
@@ -21,12 +22,14 @@ private:
 	CTechniqueJTRSingleGUI *m_pTechniqueJTRSingleGUI;
 	CTechniqueJTRBruteGUI *m_pTechniqueJTRBruteGUI;
 	CTechniqueJTRDictionaryGUI *m_pTechniqueJTRDictionaryGUI;
+	CTechniqueJTRFinalyseGUI *m_pTechniqueJTRFinalyseGUI;
 	ILC7ActionCategory *m_pTechniqueCat;
 	ILC7ActionCategory *m_pBaseCat;
 	ILC7ActionCategory *m_pSystemCat;
 	ILC7Action *m_pSingleAct;
 	ILC7Action *m_pBruteAct;
 	ILC7Action *m_pDictionaryAct;
+	ILC7Action *m_pFinalyseAct;
 	ILC7Action *m_pSettingsAct;
 	ILC7Action *m_pCalibrateAct;
 	QList<fourcc> m_supportedAccountTypes;

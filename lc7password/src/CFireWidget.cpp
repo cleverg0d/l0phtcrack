@@ -1,5 +1,8 @@
 #include <stdafx.h>
 #include <time.h>
+#ifndef _countof
+#define _countof(arr) (sizeof(arr)/sizeof((arr)[0]))
+#endif
 #include <iostream>
 #include <cmath>
 #include <random>

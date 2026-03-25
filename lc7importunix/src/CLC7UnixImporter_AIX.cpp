@@ -1,5 +1,9 @@
 #include"stdafx.h"
 
+#ifndef _WIN32
+#define OutputDebugString(s) do {} while(0)
+#endif
+
 static QDateTime janfirst1970 = QDateTime(QDate(1970, 1, 1), QTime(0, 0, 0));
 
 

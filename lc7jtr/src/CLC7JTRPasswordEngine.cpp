@@ -402,7 +402,7 @@ bool CLC7JTRCalibrationController::run_calibration_threads(fourcc fcc, GPUPLATFO
 			if (gi.platform != gpuplatform)
 				continue;
 
-			CLC7JTRCalibrationThread *thread = new CLC7JTRCalibrationThread(this, jtrkernel, "sse2", mask, gi);
+			CLC7JTRCalibrationThread *thread = new CLC7JTRCalibrationThread(this, jtrkernel, CLC7JTR::GetDefaultJtrDllVersion(), mask, gi);
 
 			thread->start();
 
@@ -556,7 +556,8 @@ QString CLC7JTRPasswordEngine::GetDescription()
 	return "John The Ripper";
 }
 
-static QVector<QString> cpupreferenceorder = { "sse2", "ssse3", "sse41", "avx", "xop", "avx2" };
+// "apple-silicon" is the ARM64/Apple Silicon baseline (listed first so it matches cpupreferenceorder[0] on ARM)
+static QVector<QString> cpupreferenceorder = { "apple-silicon", "sse2", "ssse3", "sse41", "avx", "xop", "avx2" };
 
 static int compare_cpuins(QString cpu1, QString cpu2)
 {
@@ -587,6 +588,7 @@ static int compare_cpuins(QString cpu1, QString cpu2)
 
 QVariant GetBaselineCPUColId(const QVector<QVariant> &colIds)
 {
+	QVariant firstCpuColId;
 	for (auto colId : colIds)
 	{
 		GPUPLATFORM gpu;
@@ -603,8 +605,14 @@ QVariant GetBaselineCPUColId(const QVector<QVariant> &colIds)
 			{
 				return colId;
 			}
+			// Keep first CPU column as fallback (e.g. ARM has no x86 SSE2 column)
+			if (!firstCpuColId.isValid())
+				firstCpuColId = colId;
 		}
 	}
+	// On non-x86 (ARM), no "sse2" column exists — use whatever CPU column is available
+	if (firstCpuColId.isValid())
+		return firstCpuColId;
 	Q_ASSERT(0);
 	return QVariant();
 }

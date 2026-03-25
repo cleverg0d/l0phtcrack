@@ -3,6 +3,11 @@
 
 typedef quint32 fourcc;
 
+// On non-Windows, also provide FOURCC as a type alias (on Windows it comes from windows.h)
+#ifndef _WIN32
+typedef quint32 FOURCC;
+#endif
+
 #define FOURCC(x) ( ((fourcc)(x)[0]) | ((fourcc)((x)[1]<<8)) | ((fourcc)((x)[2]<<16)) | ((fourcc)((x)[3]<<24)) )
 #define FOURCCSTRING(x) QString("%1%2%3%4").arg( ((x)>>0)&0xFF ).arg( ((x)>>8)&0xFF ).arg( ((x)>>16)&0xFF ).arg( ((x)>>24)&0xFF )
 

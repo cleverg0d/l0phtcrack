@@ -89,6 +89,9 @@ void CLC7ExecuteJTR::SetCommandLine(QStringList args, QString extra_opencl_kerne
 	johndir.cd("lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}");
 #if (PLATFORM == PLATFORM_WIN32) || (PLATFORM == PLATFORM_WIN64)
 	QString command = QDir::toNativeSeparators(johndir.filePath("john.exe"));
+#elif (PLATFORM == PLATFORM_MACOSX)
+	/* path_init() derives $JOHN from argv[0]; john_run/ holds Jumbo john.conf + includes */
+	QString command = QDir::toNativeSeparators(johndir.filePath("john_run/john"));
 #else
 	QString command = QDir::toNativeSeparators(johndir.filePath("john"));
 #endif

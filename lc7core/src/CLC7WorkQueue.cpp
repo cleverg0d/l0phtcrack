@@ -308,7 +308,9 @@ bool CLC7WorkQueue::IsValidated(void)
 
 void CLC7WorkQueue::run(void)
 {TR;
+#ifdef _WIN32
 	CoInitialize(nullptr);
+#endif
 
 	// Ensure we're validated or paused
 	if (m_queue_state != VALIDATED && m_queue_state != PAUSED)
