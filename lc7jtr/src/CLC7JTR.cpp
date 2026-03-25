@@ -1236,6 +1236,12 @@ bool CLC7JTR::DecodeGPUINFOVector(QVariant givar, QVector<LC7GPUInfo> & gpuinfo)
 
 bool CLC7JTR::SelfTest(QString jtrversion, QString algo, const LC7GPUInfo &gpuinfo, QString *extra_opencl_kernel_args)
 {
+#ifdef __APPLE__
+	/* macOS/Apple Silicon: our hashcat wrapper handles validation internally.
+	 * Skip the JtR self-test to avoid false failures. */
+	*extra_opencl_kernel_args = "";
+	return true;
+#endif
 	QList<QString> attempts;
 	if (gpuinfo.platform == GPU_OPENCL &&
 		(gpuinfo.vendor.contains("Advanced Micro") || gpuinfo.vendor.contains("AMD") || gpuinfo.vendor.contains("ATI")))

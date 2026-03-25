@@ -244,7 +244,7 @@ bool CJTRNodeWorker::ExecuteJTRCommandLine()
 		{
 			if (m_pass->nodes[m_passnode].gpu_enable)
 			{
-				set_error(QString("The GPU performed an illegal operation. Your GPU may not be supported by L0phtCrack at this time. Contact support@l0phtcrack.com."));
+				set_error(QString("The GPU performed an illegal operation. Your GPU may not be supported at this time."));
 				return false;
 			}
 			else

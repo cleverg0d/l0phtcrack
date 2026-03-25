@@ -824,9 +824,26 @@ size_t jtrdll_abi_hooks_struct_size(void)
 
 int jtrdll_main(int argc, char **argv, struct JTRDLL_HOOKS *hooks)
 {
+    /* Debug: log all calls to help diagnose issues */
+    {
+        FILE *dbg = fopen("/tmp/jtrdll_debug.log", "a");
+        if (dbg) {
+            fprintf(dbg, "jtrdll_main argc=%d\n", argc);
+            for (int di = 0; di < argc; di++)
+                fprintf(dbg, "  argv[%d]='%s'\n", di, argv[di] ? argv[di] : "(null)");
+            fclose(dbg);
+        }
+    }
+
     /* ---- Self-test mode ---- */
     if (has_arg(argc, argv, "--test=0")) {
         const char *hashcat_bin = resolve_hashcat_bin();
+        FILE *dbg = fopen("/tmp/jtrdll_debug.log", "a");
+        if (dbg) {
+            int accessible = access(hashcat_bin, X_OK);
+            fprintf(dbg, "  SELFTEST: hashcat_bin='%s' access=%d\n", hashcat_bin, accessible);
+            fclose(dbg);
+        }
         if (strcmp(hashcat_bin, "hashcat") != 0 && access(hashcat_bin, X_OK) != 0) {
             if (hooks && hooks->stderr_hook)
                 hooks->stderr_hook(hooks->ctx,

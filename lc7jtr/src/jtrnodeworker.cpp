@@ -240,7 +240,7 @@ bool CJTRNodeWorker::ExecuteJTRCommandLine()
 	{
 		if (m_pass->nodes[m_passnode].gpuinfo.platform == GPU_NONE)
 		{
-			set_error("Self test failed for this algorithm. Try a different algorithm and report this issue to support@l0phtcrack.com.");
+			set_error("Self test failed for this algorithm. Try a different algorithm.");
 		}
 		else
 		{
@@ -263,7 +263,7 @@ bool CJTRNodeWorker::ExecuteJTRCommandLine()
 		{
 			if (m_pass->nodes[m_passnode].gpuinfo.platform!=GPU_NONE)
 			{
-				set_error(QString("The GPU performed an illegal operation. Your GPU may not be supported by L0phtCrack at this time. Contact support@l0phtcrack.com."));
+				set_error(QString("The GPU performed an illegal operation. Your GPU may not be supported at this time."));
 				return false;
 			}
 			else
@@ -314,7 +314,7 @@ bool CJTRNodeWorker::preflight(CLC7ExecuteJTR::PREFLIGHT & preflight)
 	{
 		if (m_pass->nodes[m_passnode].gpuinfo.platform == GPU_NONE)
 		{
-			set_error("Self test failed for this algorithm. Try a different algorithm and report this issue to support@l0phtcrack.com.");
+			set_error("Self test failed for this algorithm. Try a different algorithm.");
 		}
 		else
 		{
