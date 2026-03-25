@@ -89,7 +89,7 @@ void GenerateCharsetThread::run(void)
 
 	ptfile.close();
 
-	CLC7ExecuteJTR exejtr("sse2");
+	CLC7ExecuteJTR exejtr(CLC7JTR::GetDefaultJtrDllVersion());
 	QStringList args;
 	args << QString("--make-charset=%1").arg(QDir::toNativeSeparators(m_charset_file));
 	args << QString("--pot=%1").arg(QDir::toNativeSeparators(pottmp));

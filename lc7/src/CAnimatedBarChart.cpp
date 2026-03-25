@@ -50,9 +50,9 @@ CAnimatedBarChart::~CAnimatedBarChart()
 void CAnimatedBarChart::reset()
 {
 	if (m_pPaintBuffers[0] != NULL)
-		delete[] m_pPaintBuffers[0];
+		delete m_pPaintBuffers[0];
 	if (m_pPaintBuffers[1] != NULL)
-		delete[] m_pPaintBuffers[1];
+		delete m_pPaintBuffers[1];
 	m_pPaintBuffers[0] = NULL;
 	m_pPaintBuffers[1] = NULL;
 	m_iCurPaintBuffer = 0;
@@ -297,9 +297,9 @@ void CAnimatedBarChart::initialize()
 void CAnimatedBarChart::initPaintBuffers()
 {
 	if (m_pPaintBuffers[0] != NULL)
-		delete[] m_pPaintBuffers[0];
+		delete m_pPaintBuffers[0];
 	if (m_pPaintBuffers[1] != NULL)
-		delete[] m_pPaintBuffers[1];
+		delete m_pPaintBuffers[1];
 	m_pPaintBuffers[0] = NULL;
 	m_pPaintBuffers[1] = NULL;
 	m_iCurPaintBuffer = 0;

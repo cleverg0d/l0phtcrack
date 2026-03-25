@@ -561,7 +561,11 @@ inline BSTR QStringToBSTR(const QString &str)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64
 CLC7SystemMonitor::CLC7SystemMonitor(CLC7Controller *ctrl) :m_wmithread(this)
+#else
+CLC7SystemMonitor::CLC7SystemMonitor(CLC7Controller *ctrl)
+#endif
 {
 	m_ctrl = ctrl;
 	m_error=false;
@@ -1012,7 +1016,19 @@ bool CLC7SystemMonitor::GetAllCPUStatus(QList<ILC7SystemMonitor::CPU_STATUS> & s
 	
 	return true;
 #else
-#error implement me
+	// macOS/non-Windows stub: return empty CPU status
+	status_per_core.clear();
+	int ncores = QThread::idealThreadCount();
+	for (int i = 0; i < ncores; i++)
+	{
+		CPU_STATUS s;
+		s.current_mhz = 0;
+		s.max_mhz = 0;
+		s.mhz_limit = 0;
+		s.utilization = 0;
+		status_per_core.append(s);
+	}
+	return true;
 #endif
 }
 
@@ -1399,6 +1415,16 @@ void CLC7SystemMonitor::GetOverdriveNInfo(int adapterId, int &fanspeed, int &fan
 
 #endif
 
+// GetErrorMessage is a common virtual function - provide implementation for all platforms
+#if !(PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64 || PLATFORM==PLATFORM_LINUX)
+bool CLC7SystemMonitor::GetErrorMessage(QString & title, QString & message)
+{
+	title = m_error_title;
+	message = m_error_message;
+	return m_error;
+}
+#endif
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// NVAPI
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1422,6 +1448,8 @@ void CLC7SystemMonitor::TerminateNVAPI(void)
 
 
 #endif
+
+#if PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64
 
 bool CLC7SystemMonitor::GetAllGPUStatus(QList<ILC7SystemMonitor::GPU_STATUS> & status_per_core, QString &error)
 {
@@ -1622,3 +1650,14 @@ bool CLC7SystemMonitor::GetAllGPUStatus(QList<ILC7SystemMonitor::GPU_STATUS> & s
 
 	return true;
 }
+
+#else // !WIN32 && !WIN64
+
+bool CLC7SystemMonitor::GetAllGPUStatus(QList<ILC7SystemMonitor::GPU_STATUS> & status_per_core, QString &error)
+{
+	QMutexLocker lock(&m_mutex);
+	status_per_core.clear();
+	return true;
+}
+
+#endif

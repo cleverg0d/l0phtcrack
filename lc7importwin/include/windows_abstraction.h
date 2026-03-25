@@ -4,18 +4,6 @@
 #include<exception>
 #include<QString>
 
-#ifdef __APPLE__
-#ifndef __INC_WINE
-#define __INC_WINE
-#undef APIENTRY
-#define __builtin_ms_va_list __builtin_va_list
-#include<windows.h>
-#undef min
-#undef max
-#define _WINBASE_H 1
-#endif
-#endif
-
 #if (PLATFORM == PLATFORM_WIN32) || (PLATFORM == PLATFORM_WIN64)
 
 #define WIN_SC_HANDLE				SC_HANDLE
@@ -27,7 +15,15 @@
 
 #else
 
-#include<libmsrpc.h>
+// macOS/Linux: portable stubs (no Wine, no libmsrpc)
+#include "win_compat.h"
+
+typedef void* WIN_SC_HANDLE;
+typedef void* WIN_SERVICE_HANDLE;
+#define INVALID_WIN_SC_HANDLE       nullptr
+#define INVALID_WIN_SERVICE_HANDLE  nullptr
+typedef void* WIN_HANDLE;
+#define INVALID_WIN_HANDLE          INVALID_HANDLE_VALUE
 
 #endif
 

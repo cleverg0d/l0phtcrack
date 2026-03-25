@@ -35,14 +35,15 @@ private:
 	QString m_sessionfilename;
 	QString m_hashesfilename;
 	bool m_fallbackretry;
-	
+
 	QStringList m_args;
 
 	CLC7ExecuteJTR *m_exejtr;
 
 	bool m_is_error;
 	QString m_error;
-	
+	QString m_engine_stderr_tail;
+
 	QList<unsigned int> m_etas;
 
 protected:

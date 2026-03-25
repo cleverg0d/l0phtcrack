@@ -14,7 +14,7 @@ typedef std::pair<int, int> Interval;
 template<class InputIterator, class OutputIterator>
 void setToIntervals(InputIterator first, InputIterator last, OutputIterator dest)
 {
-	typedef std::iterator_traits<InputIterator>::value_type item_type;
+	typedef typename std::iterator_traits<InputIterator>::value_type item_type;
 	typedef typename std::pair<item_type, item_type> pair_type;
 	pair_type r(-std::numeric_limits<item_type>::max(),
 		-std::numeric_limits<item_type>::max());

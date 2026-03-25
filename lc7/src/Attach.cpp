@@ -18,7 +18,8 @@ bool Attach::isInteractiveSession()
 	}
 	return session_id > 0;
 #else
-#error IMPLEMENT ME
+    // On macOS/Linux, assume interactive session
+    return true;
 #endif
 }
 

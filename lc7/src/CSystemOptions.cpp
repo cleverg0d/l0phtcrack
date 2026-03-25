@@ -113,6 +113,14 @@ bool CSystemOptions::GetOptions(QMap<QString, QVariant> & config, QString & erro
 		true);
 
 	AddOption(keys,
+		"_theme_:colorscheme",
+		"Color Scheme",
+		"Predefined UI color palette. Choose Custom to use manual Base/Highlight colors.",
+		0,
+		false,
+		"enumNames", QStringList() << "Blue (Default)" << "Orange" << "Green" << "Violet" << "Red" << "Custom");
+
+	AddOption(keys,
 		"_theme_:basecolor",
 		"Base Color", 
 		"Primary color to use for the user interface.",  

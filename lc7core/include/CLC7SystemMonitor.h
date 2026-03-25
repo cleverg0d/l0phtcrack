@@ -31,10 +31,17 @@ class CLC7SystemMonitor :public QObject, public ILC7SystemMonitor
 	Q_OBJECT;
 	friend class CWMIThread;
 
+private:
+	// Common members available on all platforms
+	CLC7Controller *m_ctrl;
+	bool m_error;
+	QString m_error_message;
+	QString m_error_title;
+	QMutex m_mutex;
+
 #if PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64
 private:
 
-	CLC7Controller *m_ctrl;
 	DWORD m_dwNumberOfProcessors;
 	
 	// WMI
@@ -57,8 +64,6 @@ private:
 	QList<PDH_HCOUNTER> m_pdhcounters;
 	QVector<int> m_last_utilizations;
 	bool GetLocalPerformanceCounterName(quint32 index, QString & name);
-
-	QMutex m_mutex;
 
 signals:
 	void sig_wmiQuery(QString query, QList<QMap<QString, QVariant>> *results, QString *error, bool *ret);
@@ -125,10 +130,6 @@ public:
 	bool m_bInitADL;
 	QLibrary *m_adl;
 	bool m_adl_adapters_cached;
-	
-	bool m_error;
-	QString m_error_message;
-	QString m_error_title;
 
 	struct ADL_ADAPTER_INFO {
 		QString adapterName;

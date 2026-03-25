@@ -1,14 +1,16 @@
 #ifndef __INC_CLC7IMPORTWINPLUGIN_H
 #define __INC_CLC7IMPORTWINPLUGIN_H
 
+#ifndef __APPLE__
 #include"CImportWindowsRemote.h"
 #include"CImportWindowsRemoteGUI.h"
 #include"CImportWindowsLocal.h"
 #include"CImportWindowsLocalGUI.h"
-#include"CImportSAM.h"
-#include"CImportSAMGUI.h"
+#endif
 #include"CImportNTDS.h"
 #include"CImportNTDSGUI.h"
+#include"CImportSAM.h"
+#include"CImportSAMGUI.h"
 #include"CImportPWDump.h"
 #include"CImportPWDumpGUI.h"
 #include"CWindowsImportSettings.h"
@@ -21,14 +23,16 @@ private:
 
 	CImportSAM * m_pImportSAM;
 	CImportSAMGUI * m_pImportSAMGUI;
-	CImportNTDS * m_pImportNTDS;
-	CImportNTDSGUI * m_pImportNTDSGUI;
 	CImportPWDump * m_pImportPWDump;
 	CImportPWDumpGUI * m_pImportPWDumpGUI;
+	CImportNTDS * m_pImportNTDS;
+	CImportNTDSGUI * m_pImportNTDSGUI;
+#ifndef __APPLE__
 	CImportWindowsRemote *m_pImportWinRemote;
 	CImportWindowsRemoteGUI *m_pImportWinRemoteGUI;
 	CImportWindowsLocal *m_pImportWinLocal;
 	CImportWindowsLocalGUI *m_pImportWinLocalGUI;
+#endif
 	ILC7ActionCategory *m_pImportCat;
 	ILC7ActionCategory *m_pLocalCat;
 	ILC7ActionCategory *m_pRemoteCat;

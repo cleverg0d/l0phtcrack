@@ -11,6 +11,7 @@
 #include "CAttachServer.h"
 
 class ILC7Controller;
+class CLC7ColorManager;
 
 class LC7Main : public QMainWindow
 {

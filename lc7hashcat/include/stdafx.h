@@ -21,6 +21,11 @@
 
 #include"uuids.h"
 
+#ifndef _MAX_PATH
+#include <limits.h>
+#define _MAX_PATH PATH_MAX
+#endif
+
 #define JTRDLL_IMPORTS
 #include"jtrdll.h"
 

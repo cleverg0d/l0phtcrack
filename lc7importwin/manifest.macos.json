@@ -1,0 +1,17 @@
+{
+    "authorName": "L0pht Holdings, LLC",
+    "dependencies": [
+        {
+            "internalName": "lc7password{072cbbd8-84ad-481f-b0a6-398b121434db}",
+            "minInternalVersion": 0
+        }
+    ],
+    "displayName": "LC7 Windows Import System Plugin",
+    "displayVersion": "7.3.0",
+    "internalName": "lc7importwin{17324176-3fa7-4c1a-9204-3f391b6b3599}",
+    "internalVersion": 58,
+    "isSystemLibrary": true,
+    "operatingSystem": "darwin",
+    "releaseDate": "2026-03-24T12:00:00",
+    "updateURL": ""
+}

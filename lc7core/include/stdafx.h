@@ -43,8 +43,6 @@
 #if (PLATFORM==PLATFORM_WIN32) || (PLATFORM==PLATFORM_WIN64)
 #include"CTaskScheduler_WIN32v1.h"
 #include"CTaskScheduler_WIN32v2.h"
-#else
-#error Header files plz
 #endif
 
 #include"CLC7TaskScheduler.h"

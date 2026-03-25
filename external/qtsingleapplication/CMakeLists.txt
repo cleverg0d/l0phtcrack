@@ -35,3 +35,19 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR} "src")
 ADD_LIBRARY(qtsingleapplication SHARED ${qtsingleapplication_SOURCES} ${qtsingleapplication_HEADERS} )
 qt5_use_modules(qtsingleapplication Widgets Network)
 #TARGET_LINK_LIBRARIES(qtsingleapplication)
+
+IF(APPLE)
+    ADD_CUSTOM_COMMAND(TARGET qtsingleapplication POST_BUILD
+        COMMAND install_name_tool
+            -change "/opt/homebrew/opt/qt@5/lib/QtWidgets.framework/Versions/5/QtWidgets"
+                    "@executable_path/../Frameworks/QtWidgets.framework/Versions/5/QtWidgets"
+            -change "/opt/homebrew/opt/qt@5/lib/QtGui.framework/Versions/5/QtGui"
+                    "@executable_path/../Frameworks/QtGui.framework/Versions/5/QtGui"
+            -change "/opt/homebrew/opt/qt@5/lib/QtNetwork.framework/Versions/5/QtNetwork"
+                    "@executable_path/../Frameworks/QtNetwork.framework/Versions/5/QtNetwork"
+            -change "/opt/homebrew/opt/qt@5/lib/QtCore.framework/Versions/5/QtCore"
+                    "@executable_path/../Frameworks/QtCore.framework/Versions/5/QtCore"
+            "$<TARGET_FILE:qtsingleapplication>"
+        COMMENT "Fixing Qt framework paths in libqtsingleapplication"
+    )
+ENDIF()

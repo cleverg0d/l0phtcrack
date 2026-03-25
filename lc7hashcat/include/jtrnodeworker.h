@@ -42,6 +42,7 @@ private:
 
 	bool m_is_error;
 	QString m_error;
+	QString m_engine_stderr_tail;
 	
 	QList<unsigned int> m_etas;
 

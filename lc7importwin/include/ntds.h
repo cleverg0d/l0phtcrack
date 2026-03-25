@@ -3,13 +3,21 @@
 
 #include <list>
 #include <map>
+#include <string>
+
+#ifdef _WIN32
 #include <windows.h>
 #include <Sddl.h>
 #include <Lmcons.h>
 #include <stdio.h>
-
 #define JET_VERSION 0x0502
 #include <esent.h>
+#else
+#include "win_compat.h"
+#include <stdio.h>
+// Forward declarations for libesedb handles (opaque on non-Apple)
+// Real types are defined in libesedb.h, included only in ntds_esedb.cpp
+#endif
 
 #include "crypt.h"
 
@@ -107,11 +115,18 @@
 class NTDS
 {
 private:
+#ifdef _WIN32
 	JET_INSTANCE m_instance;
 	JET_SESID m_sesid;
 	JET_DBID m_dbid;
-	QString m_ntdsfilename;
 	JET_COLUMNDEF m_columndef[18];
+#else
+	// macOS: libesedb opaque handles (cast to libesedb_*_t* in ntds_esedb.cpp)
+	void *m_file;
+	void *m_table;
+	std::map<std::string, int> m_colmap; // column_name → record column index
+#endif
+	QString m_ntdsfilename;
 	bool m_with_history;
 	bool m_include_machine_accounts;
 	bool m_using_recovery;
@@ -121,13 +136,20 @@ private:
 protected:
 
 	void Reset();
-	QString ParseJetError(JET_ERR jet_err);
 
+#ifdef _WIN32
+	QString ParseJetError(JET_ERR jet_err);
 	JET_ERR GetRecord(JET_TABLEID tableid, JET_COLUMNID columnid, LPBYTE val, ULONG *val_size);
 	int ParseDomainRecords(JET_TABLEID tableid);
 	int NTLM_ParseSAMRecord(JET_TABLEID tableid, LDAPAccountInfo ldapAccountEntry);
 	int NTLM_ParsePEKRecord(JET_TABLEID tableid, CRYPTED_DATA **pek_ciphered, size_t *len_pek_ciphered);
 	int Bitlocker_ParseRecord(JET_TABLEID tableid, BitlockerAccountInfo *bitlockerAccountEntry);
+#else
+	// macOS: take void* (libesedb_record_t*) to avoid including libesedb.h in header
+	int ParseDomainRecords(void *rec);
+	int NTLM_ParseSAMRecord(void *rec, LDAPAccountInfo ldapAccountEntry);
+	int NTLM_ParsePEKRecord(void *rec, CRYPTED_DATA **pek_ciphered, size_t *len_pek_ciphered);
+#endif
 
 public:
 

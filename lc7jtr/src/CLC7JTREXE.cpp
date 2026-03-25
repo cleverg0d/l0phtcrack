@@ -1,5 +1,11 @@
 #include<stdafx.h>
 
+#ifndef _WIN32
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdint.h>
+#endif
+
 /////////////////////////////////
 
 CLC7JTREXE::CLC7JTREXE(QString jtrdllversion) : m_cmdid(0)
@@ -18,7 +24,11 @@ CLC7JTREXE::CLC7JTREXE(QString jtrdllversion) : m_cmdid(0)
 //		QMessageBox::critical(NULL, "Process error", QString("Error code: %1").arg(error));
 //	});
 
+#ifdef _WIN32
 	m_jtrexepath = plugins.absoluteFilePath("jtrexe.exe");
+#else
+	m_jtrexepath = plugins.absoluteFilePath("jtrexe");
+#endif
 	m_jtrprocess.setProcessEnvironment(QProcessEnvironment::systemEnvironment());
 	m_jtrprocess.start(QString("\"%1\" %2 --processhost").arg(m_jtrexepath)
 		.arg(m_jtrdllversion.isEmpty() ? "" : QString("--force-%1").arg(m_jtrdllversion.toLower()))
@@ -391,23 +401,22 @@ CLC7JTREXE::PIPETYPE CLC7JTREXE::OpenControlPipe(QString ctlpipename)
 {
 #ifdef _WIN32
 	PIPETYPE pipe = CreateFile(
-		ctlpipename.toLatin1(),   // pipe name 
-		GENERIC_READ |  // read and write access 
-		GENERIC_WRITE,
-		0,              // no sharing 
-		NULL,           // default security attributes
-		OPEN_EXISTING,  // opens existing pipe 
-		0,              // default attributes 
-		NULL);         // no template file 
+		ctlpipename.toLatin1(),
+		GENERIC_READ | GENERIC_WRITE,
+		0, NULL, OPEN_EXISTING, 0, NULL);
 	if (pipe == INVALID_HANDLE_VALUE)
 	{
-		DWORD err = GetLastError();
 		Q_ASSERT(0);
-
 		return NULL;
 	}
 #else
-#error "named pipe"
+	// POSIX: ctlpipename is a path to a named FIFO or Unix socket
+	PIPETYPE pipe = ::open(ctlpipename.toLocal8Bit().constData(), O_RDWR);
+	if (pipe < 0)
+	{
+		Q_ASSERT(0);
+		return -1;
+	}
 #endif
 	return pipe;
 }
@@ -417,7 +426,8 @@ void CLC7JTREXE::CloseControlPipe(PIPETYPE pipe)
 #ifdef _WIN32
 	CloseHandle(pipe);
 #else
-#error
+	if (pipe >= 0)
+		::close(pipe);
 #endif
 }
 
@@ -425,62 +435,50 @@ bool CLC7JTREXE::readPipe(PIPETYPE pipe, size_t length, void *data)
 {
 #ifdef _WIN32
 	char *cdata = (char *)data;
-
 	while (length > 0)
 	{
 		DWORD dwBytesRead;
 		if (!ReadFile(pipe, cdata, (DWORD)length, &dwBytesRead, NULL))
-		{
-			DWORD err = GetLastError();
 			return false;
-		}
 		cdata += dwBytesRead;
 		length -= dwBytesRead;
 	}
 #else
-#error
+	char *cdata = (char *)data;
+	while (length > 0)
+	{
+		ssize_t n = ::read(pipe, cdata, length);
+		if (n <= 0)
+			return false;
+		cdata += n;
+		length -= n;
+	}
 #endif
-
 	return true;
 }
 
-
 bool CLC7JTREXE::waitForCommand(PIPETYPE pipe, QString &cmd, QByteArray &data)
 {
-#ifdef _WIN32
-
-	DWORD len;
+	uint32_t len;
 	if (!readPipe(pipe, sizeof(len), &len))
-	{
 		return false;
-	}
 
 	QByteArray bacmdname;
 	bacmdname.resize(len);
 	if (!readPipe(pipe, len, bacmdname.data()))
-	{
 		return false;
-	}
 	cmd = QString::fromLatin1(bacmdname);
 
 	if (!readPipe(pipe, sizeof(len), &len))
-	{
 		return false;
-	}
 
 	data.resize(len);
 	if (len > 0)
 	{
 		if (!readPipe(pipe, len, data.data()))
-		{
 			return false;
-		}
 	}
 
 	return true;
-
-#else
-#error
-#endif
 }
 

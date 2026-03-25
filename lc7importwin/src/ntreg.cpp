@@ -16,8 +16,13 @@
 #define LOG(...)
 #define DLOG(...)
 #define LOAD_WD_LOGONLY(...)
+#ifdef _WIN32
 #define strncaseeq(a,b,c) (strnicmp(a,b,c))
 #define strcaseeq(a,b) (stricmp(a,b))
+#else
+#define strncaseeq(a,b,c) (strncasecmp(a,b,c))
+#define strcaseeq(a,b) (strcasecmp(a,b))
+#endif
 #define streq(a,b) (strcmp(a,b))
 #define strneq(a,b,c) (strncmp(a,b,c))
 

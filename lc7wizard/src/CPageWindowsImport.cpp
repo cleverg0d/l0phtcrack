@@ -27,7 +27,14 @@ CPageWindowsImport::CPageWindowsImport(QWidget *parent)
 	m_buttongroup.addButton(m_importRemoteSMBRadioButton->radioButton());
 	m_buttongroup.addButton(m_importPWDumpRadioButton->radioButton());
 
+#ifdef __APPLE__
+	// Local and Remote import require Windows APIs — not available on macOS
+	m_importLocalRadioButton->setVisible(false);
+	m_importRemoteSMBRadioButton->setVisible(false);
+	m_importPWDumpRadioButton->radioButton()->setChecked(true);
+#else
 	m_importLocalRadioButton->radioButton()->setChecked(true);
+#endif
 
 	registerField("import_windows_local", m_importLocalRadioButton->radioButton());
 	registerField("import_windows_remote_smb", m_importRemoteSMBRadioButton->radioButton());
@@ -79,12 +86,12 @@ void CPageWindowsImport::slot_linkActivated_createRemoteAgent(const QString &)
 	ILC7Component *importwinremotegui = g_pLinkage->FindComponentByID(UUID_IMPORTWINDOWSREMOTEGUI);
 	if (!importwinremotegui)
 	{
-		Q_ASSERT(0);
 		return;
 	}
 
 	QString error;
-	importwinremotegui->ExecuteCommand("generateremoteagent", QStringList(), QMap<QString, QVariant>(), error, NULL);
+	QMap<QString, QVariant> emptyParams;
+	importwinremotegui->ExecuteCommand("generateremoteagent", QStringList(), emptyParams, error, NULL);
 }
 
 void CPageWindowsImport::UpdateUI()

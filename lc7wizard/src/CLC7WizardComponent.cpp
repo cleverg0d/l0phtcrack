@@ -34,6 +34,11 @@ QUuid CLC7WizardComponent::GetID()
 bool CLC7WizardComponent::QueueBatchCommand(QUuid uuid, QMap<QString, QVariant> & config, QString &error)
 {
 	ILC7Component *comp = g_pLinkage->FindComponentByID(uuid);
+	if (!comp)
+	{
+		error = "Component not available on this platform";
+		return false;
+	}
 
 	QStringList args;
 	args << "queue";

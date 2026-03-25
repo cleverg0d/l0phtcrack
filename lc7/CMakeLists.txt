@@ -13,7 +13,7 @@ FIND_PACKAGE(Qt5Network REQUIRED)
 FIND_PACKAGE(Qt5Widgets REQUIRED)
 FIND_PACKAGE(Qt5Core REQUIRED)
 
-SET(lc7_SOURCES 
+SET(lc7_SOURCES
 	src/stdafx.cpp
 	src/CLC7ColorManager.cpp
 	src/CLC7GUILinkage.cpp
@@ -45,8 +45,10 @@ SET(lc7_SOURCES
 	src/CLC7ExitWarningDlg.cpp
 	src/CLC7AutosaveDlg.cpp
 	src/CLC7LoginDlg.cpp
-	resources/lc7.rc
 )
+IF(MSVC)
+	LIST(APPEND lc7_SOURCES resources/lc7.rc)
+ENDIF()
 
 SET(lc7_FORMS 
 	resources/LC7Main.ui
@@ -126,10 +128,175 @@ QT5_WRAP_UI(lc7_UI_HEADERS
 
 QT5_ADD_RESOURCES(ResourceSources ${lc7_RESOURCES})
 ADD_DEFINITIONS(-DDISABLE_UPDATER)	# Remove this when updates are working again
-ADD_EXECUTABLE(lc7 WIN32 ${lc7_SOURCES} ${lc7_HEADERS} ${lc7_UI_HEADERS} ${lc7_RESOURCES} ${ResourceSources})
-TARGET_LINK_LIBRARIES(lc7 qtsingleapplication qtpropertybrowser qtpropertybrowser ${CRASHREPORTERLIB})
+IF(MSVC)
+	ADD_EXECUTABLE(lc7 WIN32 ${lc7_SOURCES} ${lc7_HEADERS} ${lc7_UI_HEADERS} ${lc7_RESOURCES} ${ResourceSources})
+ELSEIF(APPLE)
+	ADD_EXECUTABLE(lc7 MACOSX_BUNDLE ${lc7_SOURCES} ${lc7_HEADERS} ${lc7_UI_HEADERS} ${lc7_RESOURCES} ${ResourceSources})
+ELSE()
+	ADD_EXECUTABLE(lc7 ${lc7_SOURCES} ${lc7_HEADERS} ${lc7_UI_HEADERS} ${lc7_RESOURCES} ${ResourceSources})
+ENDIF()
+FIND_PACKAGE(ZLIB REQUIRED)
+TARGET_LINK_LIBRARIES(lc7 qtsingleapplication qtpropertybrowser qtpropertybrowser ${CRASHREPORTERLIB} ZLIB::ZLIB)
 
-qt5_use_modules(lc7 Widgets)
+qt5_use_modules(lc7 Widgets Network)
+
+IF(APPLE)
+    SET_TARGET_PROPERTIES(lc7 PROPERTIES
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.l0phtcrack.lc7"
+        MACOSX_BUNDLE_BUNDLE_NAME "L0phtCrack 7"
+        MACOSX_BUNDLE_ICON_FILE "lc7"
+        MACOSX_BUNDLE_BUNDLE_VERSION "7.3.0"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "7.3.0"
+        MACOSX_BUNDLE_LONG_VERSION_STRING "7.3.0 macOS community fork"
+        MACOSX_BUNDLE_COPYRIGHT "L0pht Holdings, LLC. Unofficial community builds maintain separate changelogs."
+        MACOSX_RPATH TRUE
+        BUILD_WITH_INSTALL_RPATH TRUE
+        INSTALL_RPATH "@loader_path"
+    )
+    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND install_name_tool
+            -change "/opt/homebrew/opt/qt@5/lib/QtWidgets.framework/Versions/5/QtWidgets"
+                    "@executable_path/../Frameworks/QtWidgets.framework/Versions/5/QtWidgets"
+            -change "/opt/homebrew/opt/qt@5/lib/QtGui.framework/Versions/5/QtGui"
+                    "@executable_path/../Frameworks/QtGui.framework/Versions/5/QtGui"
+            -change "/opt/homebrew/opt/qt@5/lib/QtNetwork.framework/Versions/5/QtNetwork"
+                    "@executable_path/../Frameworks/QtNetwork.framework/Versions/5/QtNetwork"
+            -change "/opt/homebrew/opt/qt@5/lib/QtCore.framework/Versions/5/QtCore"
+                    "@executable_path/../Frameworks/QtCore.framework/Versions/5/QtCore"
+            "$<TARGET_FILE:lc7>"
+        COMMENT "Fixing Qt framework paths in lc7 binary"
+    )
+    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/lc7/resources/lc7.icns"
+            "$<TARGET_BUNDLE_CONTENT_DIR:lc7>/Resources/lc7.icns"
+        COMMENT "Bundle application icon (regenerate with tools/macos/mk-icns.sh if art changes)"
+    )
+    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_BUNDLE_CONTENT_DIR:lc7>/MacOS/common"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/dist/common/common/wordlists"
+            "$<TARGET_BUNDLE_CONTENT_DIR:lc7>/MacOS/common/wordlists"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/dist/common/common/rules"
+            "$<TARGET_BUNDLE_CONTENT_DIR:lc7>/MacOS/common/rules"
+        COMMENT "Copying bundled wordlists and rules into app bundle"
+    )
+    # QLibrary loads liblc7core.dylib from the executable directory; helper dylibs must sit next to lc7.
+    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:lc7core>"
+            "$<TARGET_FILE_DIR:lc7>/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:qtsingleapplication>"
+            "$<TARGET_FILE_DIR:lc7>/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:qtpropertybrowser>"
+            "$<TARGET_FILE_DIR:lc7>/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:quazip>"
+            "$<TARGET_FILE_DIR:lc7>/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:qt5keychain>"
+            "$<TARGET_FILE_DIR:lc7>/"
+        COMMAND /bin/cp
+            -a
+            "$<TARGET_FILE_DIR:lc7>/../../../libqt5keychain.0.dylib"
+            "$<TARGET_FILE_DIR:lc7>/"
+        COMMAND /bin/cp
+            -a
+            "$<TARGET_FILE_DIR:lc7>/../../../libqt5keychain.dylib"
+            "$<TARGET_FILE_DIR:lc7>/"
+        COMMENT "Copy lc7core and dependent dylibs into app bundle MacOS"
+    )
+    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND install_name_tool
+            -change "/opt/homebrew/opt/qt@5/lib/QtWidgets.framework/Versions/5/QtWidgets"
+                    "@executable_path/../Frameworks/QtWidgets.framework/Versions/5/QtWidgets"
+            -change "/opt/homebrew/opt/qt@5/lib/QtSql.framework/Versions/5/QtSql"
+                    "@executable_path/../Frameworks/QtSql.framework/Versions/5/QtSql"
+            -change "/opt/homebrew/opt/qt@5/lib/QtGui.framework/Versions/5/QtGui"
+                    "@executable_path/../Frameworks/QtGui.framework/Versions/5/QtGui"
+            -change "/opt/homebrew/opt/qt@5/lib/QtCore.framework/Versions/5/QtCore"
+                    "@executable_path/../Frameworks/QtCore.framework/Versions/5/QtCore"
+            "$<TARGET_FILE_DIR:lc7>/liblc7core.dylib"
+        COMMAND install_name_tool
+            -change "/opt/homebrew/opt/qt@5/lib/QtWidgets.framework/Versions/5/QtWidgets"
+                    "@executable_path/../Frameworks/QtWidgets.framework/Versions/5/QtWidgets"
+            -change "/opt/homebrew/opt/qt@5/lib/QtGui.framework/Versions/5/QtGui"
+                    "@executable_path/../Frameworks/QtGui.framework/Versions/5/QtGui"
+            -change "/opt/homebrew/opt/qt@5/lib/QtCore.framework/Versions/5/QtCore"
+                    "@executable_path/../Frameworks/QtCore.framework/Versions/5/QtCore"
+            "$<TARGET_FILE_DIR:lc7>/libquazip.dylib"
+        COMMAND install_name_tool
+            -change "/opt/homebrew/opt/qt@5/lib/QtCore.framework/Versions/5/QtCore"
+                    "@executable_path/../Frameworks/QtCore.framework/Versions/5/QtCore"
+            "$<TARGET_FILE_DIR:lc7>/$<TARGET_FILE_NAME:qt5keychain>"
+        COMMENT "Point bundled lc7core, quazip, qt5keychain at embedded Qt frameworks"
+    )
+    FIND_PROGRAM(
+        LC7_MACDEPLOYQT_EXECUTABLE
+        NAMES macdeployqt
+        HINTS
+            "${Qt5_DIR}/../../../bin"
+            /opt/homebrew/opt/qt@5/bin
+            /usr/local/opt/qt@5/bin
+        DOC "Qt mac deployment tool (relays PlugIns to bundled Qt, prevents duplicate Homebrew Qt)"
+    )
+    IF(LC7_MACDEPLOYQT_EXECUTABLE)
+        ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+            COMMAND ${LC7_MACDEPLOYQT_EXECUTABLE}
+                "$<TARGET_BUNDLE_DIR:lc7>"
+                -libpath=${CMAKE_BINARY_DIR}/dist
+                -always-overwrite
+            COMMENT "macdeployqt: bundle Qt plugins against embedded Frameworks"
+        )
+    ENDIF()
+    # macdeployqt copies only dylibs into the bundle; manifest.json must sit next to each plugin.
+    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_BINARY_DIR}/dist/lcplugins/lc7importwin{17324176-3fa7-4c1a-9204-3f391b6b3599}/manifest.json"
+            "$<TARGET_FILE_DIR:lc7>/lcplugins/lc7importwin{17324176-3fa7-4c1a-9204-3f391b6b3599}/manifest.json"
+        COMMENT "lc7importwin manifest into bundle (macdeployqt does not copy JSON)"
+    )
+    # macdeployqt may replace or thin plugin folders; re-sync lc7jtr from dist so the .app always runs.
+    SET(_LC7JTR_PLUGDIR "lcplugins/lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}")
+    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_FILE_DIR:lc7>/${_LC7JTR_PLUGDIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_BINARY_DIR}/dist/lcplugins/lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}/liblc7jtr.dylib"
+            "$<TARGET_FILE_DIR:lc7>/${_LC7JTR_PLUGDIR}/liblc7jtr.dylib"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_BINARY_DIR}/dist/lcplugins/lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}/manifest.json"
+            "$<TARGET_FILE_DIR:lc7>/${_LC7JTR_PLUGDIR}/manifest.json"
+        COMMENT "Sync lc7jtr plugin into bundle (after macdeployqt)"
+    )
+    IF(TARGET jtrdll_apple_silicon)
+        ADD_DEPENDENCIES(lc7 jtrdll_apple_silicon)
+        ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:jtrdll_apple_silicon>"
+                "$<TARGET_FILE_DIR:lc7>/${_LC7JTR_PLUGDIR}/jtrdll_apple-silicon.dylib"
+            COMMENT "Sync John engine dylib into bundle (after macdeployqt)"
+        )
+    ENDIF()
+    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_BINARY_DIR}/dist/${_LC7JTR_PLUGDIR}/john_run"
+            "$<TARGET_FILE_DIR:lc7>/${_LC7JTR_PLUGDIR}/john_run"
+        COMMENT "Sync John Jumbo john_run (john.conf) into app bundle"
+    )
+    ADD_DEPENDENCIES(lc7 lc7jtr)
+    FIND_PROGRAM(LC7_CODESIGN_EXECUTABLE codesign)
+    IF(LC7_CODESIGN_EXECUTABLE)
+        ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+            COMMAND ${LC7_CODESIGN_EXECUTABLE} --force --deep -s -
+                "$<TARGET_BUNDLE_DIR:lc7>"
+            COMMENT "Ad-hoc codesign: Gatekeeper and plugin dylibs load reliably from Finder"
+        )
+    ENDIF()
+ENDIF()
 
 ADD_PRECOMPILED_HEADER(lc7 stdafx lc7_SOURCES)
 

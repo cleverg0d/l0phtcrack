@@ -1,13 +1,22 @@
 #ifndef __INC_UTILS_H
 #define __INC_UTILS_H
 
+#ifdef _WIN32
 #include <windows.h>
 #include <Sddl.h>
 #include <Lmcons.h>
 #include <stdio.h>
-
 #define JET_VERSION 0x0502
 #include <esent.h>
+#else
+#include "win_compat.h"
+#include <stdio.h>
+// Portable stubs for Windows-only types used in struct declarations
+typedef char TCHAR;
+#define UNLEN 256
+typedef struct { uint32_t Data1; uint16_t Data2; uint16_t Data3; uint8_t Data4[8]; } GUID;
+typedef struct { uint32_t dwLowDateTime; uint32_t dwHighDateTime; } FILETIME;
+#endif
 
 /* Dumping tools */
 #define SAM_EMPTY_LM "AAD3B435B51404EEAAD3B435B51404EE"
@@ -256,13 +265,14 @@ DWORD BSWAP(DWORD n);
 BYTE HexDigitToByte(char digit);
 //void BytesToHex(LPVOID data, size_t data_size, LPSTR out_str);
 
+#ifdef _WIN32
 // Privileges setting
 bool SetSeRestorePrivilege();
 bool SetSeBackupPrivilege();
-//bool SetPrivilege();
 
 // Windows registry overlay
 bool RegGetValueEx(HKEY hKeyReg, LPSTR keyName, LPSTR valueName, LPDWORD type, LPVOID val, DWORD valSize, LPDWORD outValSize);
+#endif
 
 // Debug / text functions
 /*

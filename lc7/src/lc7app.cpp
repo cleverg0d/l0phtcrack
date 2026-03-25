@@ -1,6 +1,8 @@
 #include<stdafx.h>
 #include"LC7Main.h"
 
+#include <cstdio>
+
 #ifdef _WIN32
 
 JobObjectManager::JobObjectManager()
@@ -71,7 +73,8 @@ CLC7App *CLC7App::getInstance()
 	return g_the_app;
 }
 
-CLC7App::CLC7App(int argc, char *argv[]):QtSingleApplication(argc,argv)
+CLC7App::CLC7App(int argc, char *argv[])
+	: QtSingleApplication(QStringLiteral("com.l0phtcrack.lc7"), argc, argv)
 {
 	m_pMainWnd=NULL;
 	m_pCtrl=NULL;
@@ -327,13 +330,39 @@ bool CLC7App::Initialize()
 	m_CoreDLL.setFileName("lc7core");
 	if (!m_CoreDLL.load())
 	{
+		const QString err = m_CoreDLL.errorString();
+		std::fprintf(stderr, "LC7: could not load lc7core next to the executable: %s\n",
+			err.toUtf8().constData());
+		std::fflush(stderr);
+		QMessageBox::critical(nullptr, QStringLiteral("L0phtCrack 7"),
+			QStringLiteral("Could not load lc7core (liblc7core.dylib must sit in the same folder as the lc7 binary).\n\n%1\n\n"
+				"If you moved lc7 out of the .app bundle, use the full app or copy all dylibs with it.")
+				.arg(err));
 		return false;
+	}
+
+	typedef void (*LC7DiagnosticLogSessionBannerFn)(const char *);
+	LC7DiagnosticLogSessionBannerFn banner =
+		(LC7DiagnosticLogSessionBannerFn)m_CoreDLL.resolve("LC7DiagnosticLogSessionBanner");
+	if (banner)
+	{
+		banner(QCoreApplication::applicationDirPath().toUtf8().constData());
+	}
+	else
+	{
+		std::fprintf(stderr,
+			"LC7: symbol LC7DiagnosticLogSessionBanner missing in lc7core — rebuild lc7core and ensure lc7core dylib in app bundle matches.\n");
+		std::fflush(stderr);
 	}
 
 	// Create controller object
 	TYPEOF_CreateLC7Controller *pCreateLC7Controller = (TYPEOF_CreateLC7Controller *)m_CoreDLL.resolve("CreateLC7Controller");
 	if (!pCreateLC7Controller)
 	{
+		std::fprintf(stderr, "LC7: CreateLC7Controller symbol missing in lc7core (rebuild lc7core and lc7).\n");
+		std::fflush(stderr);
+		QMessageBox::critical(nullptr, QStringLiteral("L0phtCrack 7"),
+			QStringLiteral("lc7core is present but does not export CreateLC7Controller. Rebuild lc7core and this app from the same tree."));
 		return false;
 	}
 	m_pCtrl = (*pCreateLC7Controller)();
@@ -359,6 +388,14 @@ bool CLC7App::Initialize()
 	client_startup_modes.append("gui");
 	if (!m_pCtrl->Startup(client_startup_modes))
 	{
+		std::fprintf(stderr,
+			"LC7: CLC7Controller::Startup failed. Quit other LC7 instances, remove %s/LC7_temp if no LC7 is running, then retry.\n",
+			QDir::tempPath().toUtf8().constData());
+		std::fflush(stderr);
+		QMessageBox::critical(m_pMainWnd, QStringLiteral("L0phtCrack 7"),
+			QStringLiteral("Core controller failed to start. Often this means another LC7 is already running, or the temp folder is stuck.\n\n"
+				"Try: quit all LC7, delete folder:\n%1/LC7_temp\n(if no LC7 process is using it), then start again.")
+				.arg(QDir::tempPath()));
 		return false;
 	}
 	m_bControllerStarted = true;
@@ -392,7 +429,7 @@ bool CLC7App::Initialize()
 
 	// Flush default settings to registry
 	m_pSystemPage->RefreshContent();
-	
+
 	// Select topmost tab
 	m_pMainWnd->SwitchToFirstTab();
 
@@ -405,9 +442,9 @@ bool CLC7App::Initialize()
 	}
 	else
 	{
-		m_pMainWnd->showMaximized();
+		m_pMainWnd->show();
 	}
-	
+
 	// Process command line
 	QTimer::singleShot(0, m_pMainWnd, SLOT(slot_processCommandLine()));
 

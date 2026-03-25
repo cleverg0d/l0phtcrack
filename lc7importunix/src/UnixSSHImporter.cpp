@@ -7,11 +7,14 @@
 #include<ws2tcpip.h>
 #define _last_sock_err() WSAGetLastError()
 
-#else 
+#else
 
 #include<errno.h>
 #include<sys/socket.h>
 #include<arpa/inet.h>
+#include<netdb.h>
+#include<unistd.h>
+#define closesocket(s) close(s)
 
 #define _last_sock_err() errno
 
@@ -32,7 +35,11 @@ UnixSSHImporter::UnixSSHImporter(ILC7AccountList *accountlist, ILC7CommandContro
 	// Init libssh2 and make session
 
 	libssh2_init(0);
+#ifdef _WIN32
 	m_socket = NULL;
+#else
+	m_socket = 0;
+#endif
 	m_ssh = NULL;
 	m_channel = NULL;
 }

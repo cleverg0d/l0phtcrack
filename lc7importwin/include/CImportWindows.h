@@ -1,18 +1,6 @@
 #ifndef __INC_IMPORTWINDOWS_H
 #define __INC_IMPORTWINDOWS_H
 
-#ifdef __APPLE__
-#ifndef __INC_WINE
-#define __INC_WINE
-#undef APIENTRY
-#define __builtin_ms_va_list __builtin_va_list
-#include<windows.h>
-#undef min
-#undef max
-#define _WINBASE_H 1
-#endif
-#endif
-
 #include "windows_abstraction.h"
 #include <QThread>
 #include "lc7api.h"

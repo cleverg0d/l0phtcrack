@@ -62,7 +62,7 @@ QT5_ADD_RESOURCES(ResourceSources ${lc7base_RESOURCES})
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR} "include" "../api/include" "../external/qtpropertybrowser/src")
 ADD_LIBRARY(lc7base SHARED ${lc7base_SOURCES} ${lc7base_HEADERS} ${lc7base_UI_HEADERS} ${lc7base_RESOURCES} ${ResourceSources} )
-TARGET_LINK_LIBRARIES(lc7base qtpropertybrowser)
+TARGET_LINK_LIBRARIES(lc7base qtpropertybrowser lc7core)
 
 qt5_use_modules(lc7base Widgets Network Help)
 

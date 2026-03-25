@@ -17,7 +17,7 @@ CLC7TaskScheduler::CLC7TaskScheduler(CLC7Controller *ctrl)
 		m_sched = new CTaskScheduler_WIN32v2(ctrl);
 	}
 #else
-#error implement me
+	m_sched = nullptr;
 #endif
 
 }
@@ -39,6 +39,10 @@ ILC7Interface *CLC7TaskScheduler::GetInterfaceVersion(QString interface_name)
 
 bool CLC7TaskScheduler::Initialize(QString &error)
 {TR;
+	if (!m_sched)
+	{
+		return true;
+	}
 	if (!m_sched->Startup(error))
 	{
 		return false;
@@ -183,7 +187,8 @@ ILC7Task *CLC7TaskScheduler::ScheduleTask(ILC7EditableTask *etask, QString & err
 
 	QString parameters = QString("--task \"%1\"").arg(task->GetId());
 #else
-#error implement me!
+	QString appname = qApp->applicationFilePath();
+	QString parameters = QString("--task \"%1\"").arg(task->GetId());
 #endif
 
 	if (!m_sched->ScheduleTask(task, appname, parameters, creds, error))
@@ -305,6 +310,11 @@ bool CLC7TaskScheduler::CommitScheduledTask(ILC7EditableTask *task, QString &err
 void CLC7TaskScheduler::RefreshTasks(void)
 {TR;
 	ClearTasks();
+
+	if (!m_sched)
+	{
+		return;
+	}
 
 	QString error;
 	if (!m_sched->RefreshScheduledTasks(error))

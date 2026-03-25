@@ -332,6 +332,60 @@ bool PWDumpImporter::ParseNT(QStringList parts, LC7Account & acct)
 	return false;
 }
 
+// Parse secretsdump short format: "username:nthash" or "domain\username:nthash"
+// where nthash is exactly 32 hex chars (NT hash only, no LM, no RID)
+bool PWDumpImporter::ParseShortNT(QStringList parts, LC7Account & acct)
+{
+	if (parts.size() != 2)
+		return false;
+
+	QString nthash = parts[1];
+	if (nthash.size() != 32 || !isHex(nthash))
+		return false;
+
+	// Skip comment/header lines
+	QString username = parts[0];
+	if (username.startsWith("[") || username.startsWith("#"))
+		return false;
+
+	if (nthash == "31d6cfe0d16ae931b73c59d7e0c089c0" || nthash == "31D6CFE0D16AE931B73C59D7E0C089C0")
+	{
+		// Empty password hash - still import but mark as cracked
+		LC7Hash hash;
+		hash.hashtype = FOURCC(HASHTYPE_NT);
+		hash.crackstate = CRACKSTATE_CRACKED;
+		hash.cracktype = "No Password";
+		hash.cracktime = 0;
+		hash.hash = nthash.toLatin1();
+		acct.hashes.append(hash);
+	}
+	else
+	{
+		LC7Hash hash;
+		hash.hashtype = FOURCC(HASHTYPE_NT);
+		hash.crackstate = 0;
+		hash.cracktime = 0;
+		hash.hash = nthash.toLatin1();
+		acct.hashes.append(hash);
+	}
+
+	if (username.contains('\\'))
+	{
+		QStringList principal = username.split('\\');
+		acct.domain = principal[0];
+		acct.username = principal[1];
+	}
+	else
+	{
+		acct.username = username;
+		acct.domain = "";
+	}
+
+	acct.userid = "";
+	acct.userinfo = "";
+	return true;
+}
+
 bool PWDumpImporter::GetHashTypes(QString filename, QSet<fourcc> & hashtypes, QString & error)
 {
 	TR;
@@ -359,7 +413,10 @@ bool PWDumpImporter::GetHashTypes(QString filename, QSet<fourcc> & hashtypes, QS
 		{
 			if (!ParseNT(parts, acct))
 			{
-				continue;
+				if (!ParseShortNT(parts, acct))
+				{
+					continue;
+				}
 			}
 		}
 		foreach(const LC7Hash &hash, acct.hashes)
@@ -434,7 +491,7 @@ bool PWDumpImporter::DoImport(QString filename, QString & error, bool & cancelle
 			}
 			iscr = true;
 		}
-		else if (ParseNT(parts,acct))
+		else if (ParseNT(parts, acct) || ParseShortNT(parts, acct))
 		{
 			if (iscr)
 			{

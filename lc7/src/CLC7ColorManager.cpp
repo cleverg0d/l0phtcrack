@@ -139,7 +139,7 @@ QColor CLC7ColorManager::GetDefaultBaseColor()
 QColor CLC7ColorManager::GetDefaultHighlightColor()
 {
 	TR;
-	return QColor("#F27800");
+	return QColor("#2B9BF1");
 }
 
 
@@ -189,9 +189,54 @@ void CLC7ColorManager::slot_reloadSettings(void)
 	m_temporary_dir = CLC7App::getInstance()->GetController()->NewTemporaryDir();
 
 	ILC7Settings *settings = CLC7App::getInstance()->GetController()->GetSettings();
-
-	m_basecolor = settings->value("_theme_:basecolor", GetDefaultBaseColor()).value<QColor>();
-	m_highlightcolor = settings->value("_theme_:highlightcolor", GetDefaultHighlightColor()).value<QColor>();
+	int colorScheme = settings->value("_theme_:colorscheme", 0).toInt();
+	QColor configuredBase = settings->value("_theme_:basecolor", GetDefaultBaseColor()).value<QColor>();
+	QColor configuredHighlight = settings->value("_theme_:highlightcolor", GetDefaultHighlightColor()).value<QColor>();
+	switch (colorScheme)
+	{
+	case 0: // Blue (default)
+		configuredBase = QColor("#505050");
+		configuredHighlight = QColor("#2B9BF1");
+		break;
+	case 1: // Orange
+		configuredBase = QColor("#505050");
+		configuredHighlight = QColor("#F27800");
+		break;
+	case 2: // Green
+		configuredBase = QColor("#4D5648");
+		configuredHighlight = QColor("#31B86B");
+		break;
+	case 3: // Violet
+		configuredBase = QColor("#4F4B5A");
+		configuredHighlight = QColor("#8A63D2");
+		break;
+	case 4: // Red
+		configuredBase = QColor("#5A4A4A");
+		configuredHighlight = QColor("#D65A5A");
+		break;
+	default: // Custom
+		break;
+	}
+	if (colorScheme != 5)
+	{
+		if (settings->value("_theme_:basecolor").value<QColor>() != configuredBase)
+		{
+			settings->setValue("_theme_:basecolor", configuredBase);
+		}
+		if (settings->value("_theme_:highlightcolor").value<QColor>() != configuredHighlight)
+		{
+			settings->setValue("_theme_:highlightcolor", configuredHighlight);
+		}
+	}
+	const QColor legacyOrange("#F27800");
+	// Migrate old default orange to new blue highlight for existing profiles.
+	if ((!configuredHighlight.isValid() || configuredHighlight == legacyOrange) && colorScheme == 0)
+	{
+		configuredHighlight = GetDefaultHighlightColor();
+		settings->setValue("_theme_:highlightcolor", configuredHighlight);
+	}
+	m_basecolor = configuredBase;
+	m_highlightcolor = configuredHighlight;
 	m_shades.clear();
 
 #ifdef _DEBUG
@@ -303,11 +348,7 @@ QString CLC7ColorManager::GetStyleSheet(void)
 }
 
 
-#ifdef Q_OS_WIN
-
 const float DEFAULT_DPI = 96.0;
-
-#endif //Q_OS_WIN
 
 void CLC7ColorManager::RecalculateColors()
 {

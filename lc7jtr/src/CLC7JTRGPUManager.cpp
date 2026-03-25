@@ -27,7 +27,12 @@ ILC7Interface *CLC7JTRGPUManager::GetInterfaceVersion(QString interface_name)
 bool CLC7JTRGPUManager::ExecuteJTR(QStringList args, QString & out, QString &err, int &retval)
 {
 	TR;
-	CLC7ExecuteJTR exejtr("sse2");
+	CLC7ExecuteJTR exejtr(CLC7JTR::GetDefaultJtrDllVersion());
+	if (!exejtr.IsValid())
+	{
+		retval = -1;
+		return false;
+	}
 	exejtr.SetCommandLine(args);
 	retval = exejtr.ExecuteWait(out, err);
 	return retval == 0;

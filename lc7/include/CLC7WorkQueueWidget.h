@@ -39,6 +39,12 @@ private:
 	QString m_appendString;
 	QTimer m_append_to_activity_log_later_timer;
 	bool m_append_to_activity_log_later;
+	QTimer m_progress_update_timer;
+	quint32 m_pending_current_progress;
+	quint32 m_pending_total_progress;
+	quint32 m_last_current_progress;
+	quint32 m_last_total_progress;
+	bool m_has_pending_progress;
 
 	QList<PROGRESSCTX> m_cpu_progressbars;
 	QList<PROGRESSCTX> m_gpu_progressbars;
@@ -78,6 +84,7 @@ private slots:
 	void slot_setStatusText(QString text);
 	void slot_updateCurrentProgressBar(quint32 cur);
 	void slot_updateTotalProgressBar(quint32 cur);
+	void slot_flushProgressBars(void);
 	void onBatchWorkQueueChanged(void);
 	void onSingleWorkQueueChanged(void);
 	void slot_createSystemMonitor(void);

@@ -10,18 +10,13 @@ CJTRWorker::CJTRWorker(CLC7JTR *lc7jtr, JTRWORKERCTX *ctx, ILC7CommandControl *c
 	m_is_error=false;
 	m_potsize=0;
 	m_status_available = false;
-	
-	// XXX: Sorry for the Win32!
-	// If porting this, use 'pevents', there is no equivalent
-	// semantic in straight Qt! Qt conditions are not quite right!
-	m_workerDoneEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+
+	// m_workerDoneEvent is a QSemaphore(0), initially blocked
 }
- 
-CJTRWorker::~CJTRWorker() 
+
+CJTRWorker::~CJTRWorker()
 {TR;
 	CleanUpNodeWorkers();
-
-	CloseHandle(m_workerDoneEvent);
 }
 
 void CJTRWorker::CleanUpNodeWorkers()
@@ -40,8 +35,8 @@ void CJTRWorker::stop()
 	requestInterruption();
 
 	// Tell worker to stop
-	SetEvent(m_workerDoneEvent);
-	
+	m_workerDoneEvent.release(1);
+
 	wait();
 }
 
@@ -121,14 +116,14 @@ bool CJTRWorker::GenerateCrackedWordlist(QString &wordlist_file, QString &error)
 
 void CJTRWorker::slot_workerDone(void)
 {
-	SetEvent(m_workerDoneEvent);
+	m_workerDoneEvent.release(1);
 }
 
 bool CJTRWorker::RunPass(JTRPASS & pass, QString & error)
 {TR;
 	// Mark start of this pass and set elapsed time at last pass
 	m_ctx->m_elapsed_seconds_at_start_of_pass = m_ctx->m_elapsed_seconds;
-	
+
 	QDateTime dt_start = QDateTime::currentDateTime();
 	quint32 secsleft = 0;
 	if (pass.durationblock != -1)
@@ -146,7 +141,7 @@ bool CJTRWorker::RunPass(JTRPASS & pass, QString & error)
 	{
 		return true;
 	}
-	
+
 	// Generate hash list if we're not restoring, else just keep the same hashes file from before
 	if (!m_ctx->m_restore)
 	{
@@ -186,14 +181,14 @@ bool CJTRWorker::RunPass(JTRPASS & pass, QString & error)
 		{
 			StartNode(pass, passnode);
 		}
-		
+
 		m_status_available = true;
-		
+
 		// Wait for all node threads to finish
 		QList<CJTRNodeWorker *> alive_workers = m_nodeworkers;
 		while (alive_workers.size() > 0)
 		{
-			WaitForSingleObject(m_workerDoneEvent, 1000);
+			m_workerDoneEvent.tryAcquire(1, 1000);
 
 			// Check for timeout
 			QDateTime dt_end = QDateTime::currentDateTime();
@@ -281,7 +276,7 @@ void CJTRWorker::run()
 	{
 		m_potsize=potinfo.size();
 	}
-	
+
 	// Do all passes
 	while(m_ctx->m_current_pass < m_ctx->m_jtrpasses.size())
 	{
@@ -319,13 +314,13 @@ void CJTRWorker::run()
 
 		bool failed = false;
 		QString error;
-		
+
 		if (run_pass)
 		{
 			m_ctrl->AppendToActivityLog(QString("\nStarting pass: %1\n").arg(pass.passdescription));
 			failed = !RunPass(pass, error);
 		}
-		
+
 		// Fail out
 		if(failed)
 		{
@@ -347,7 +342,7 @@ void CJTRWorker::run()
 			tempdir.remove(sessionfile);
 		}
 
-		// Turn off 'restore' for next pass, since 
+		// Turn off 'restore' for next pass, since
 		// we only want to restore the last pass that we stopped at
 		m_ctx->m_restore = false;
 
@@ -359,15 +354,17 @@ void CJTRWorker::StartNode(JTRPASS &pass, int passnode)
 {TR;
 	QDir tempdir(m_ctx->m_temporary_dir);
 	QString potfilename=tempdir.filePath(tempdir.filePath("pot"));
-	QString sessionfilename=tempdir.filePath(QString("session.%1").arg(passnode));
+	// John validates session names and rejects the special case where the dot-separated suffix is all digits.
+	// Using a non-digit tail keeps session naming stable across nodes.
+	QString sessionfilename=tempdir.filePath(QString("session.%1x").arg(passnode));
 	QString hashesfilename=tempdir.filePath(QString("hashes"));
-	
+
 	if(m_ctx->m_restore && !tempdir.exists(sessionfilename+".rec"))
 	{
 		// This node is already done, dont start it
 		return;
 	}
-	
+
 	CJTRNodeWorker *pJTRNodeWorker = new CJTRNodeWorker(m_ctx, &pass, passnode, m_ctx->m_restore, potfilename, sessionfilename, hashesfilename);
 	m_nodeworkers.append(pJTRNodeWorker);
 
@@ -423,6 +420,15 @@ QString CJTRWorker::format_speed(unsigned long long count)
 	return QString("%1%2").arg(cnt,0,'f',3).arg(suffix);
 }
 
+static QString formatTelemetryValue(unsigned int value, const QString &suffix)
+{
+	if (value == 0)
+	{
+		return QString("N/A");
+	}
+	return QString("%1%2").arg(value).arg(suffix);
+}
+
 JTRSTATUS CJTRWorker::get_status()
 {TR;
 	if (!m_status_available)
@@ -457,10 +463,10 @@ JTRSTATUS CJTRWorker::get_status()
 			donecount++;
 		}
 		else if(status.stage>total_status.stage)
-		{			
+		{
 			total_status.stage=status.stage;
 		}
-		
+
 		if(status.stage==2)
 		{
 			total_status.percent += status.percent;
@@ -484,10 +490,10 @@ JTRSTATUS CJTRWorker::get_status()
 			count++;
 		}
 	}
-	
+
 	if(donecount!=m_nodeworkers.size())
 	{
-		
+
 		JTRSTATUS jtrstatus;
 
 		if(total_status.stage==0)
@@ -500,7 +506,7 @@ JTRSTATUS CJTRWorker::get_status()
 			jtrstatus.percent_done = 0;
 			jtrstatus.details="";
 			jtrstatus.secs_total = 0;
-			
+
 			m_last_status = jtrstatus;
 			return jtrstatus;
 		}
@@ -514,7 +520,7 @@ JTRSTATUS CJTRWorker::get_status()
 			jtrstatus.percent_done=0;
 			jtrstatus.details="";
 			jtrstatus.secs_total = 0;
-			
+
 			m_last_status = jtrstatus;
 			return jtrstatus;
 		}
@@ -523,9 +529,9 @@ JTRSTATUS CJTRWorker::get_status()
 			total_status.percent/=count;
 			total_status.time/=count;
 			total_status.eta/=count;
-			
+
 			// XXX Calculate this ourselves?
-			
+
 			if (total_status.percent < 0.001)
 			{
 				total_status.eta = 0;
@@ -534,7 +540,7 @@ JTRSTATUS CJTRWorker::get_status()
 			{
 				total_status.eta = total_status.time * (100.0 - total_status.percent) / total_status.percent;
 			}
-			
+
 
 			// for pass time
 			//int elapsed_days,elapsed_hours,elapsed_minutes,elapsed_seconds;
@@ -542,7 +548,7 @@ JTRSTATUS CJTRWorker::get_status()
 			//elapsed_hours=(total_status.time % (24*60*60))/(60*60);
 			//elapsed_minutes=(total_status.time % (60*60))/60;
 			//elapsed_seconds=(total_status.time % 60);
-			
+
 			//QString elapsed_str=QString("%1d%2h%3m%4s").arg(elapsed_days).arg(elapsed_hours).arg(elapsed_minutes).arg(elapsed_seconds);
 
 			quint32 elapsed_days,elapsed_hours,elapsed_minutes,elapsed_seconds;
@@ -577,13 +583,14 @@ JTRSTATUS CJTRWorker::get_status()
 
 			QString eta_str;
 			if(total_status.eta!=0 && total_status.eta < (24*60*60*365))
-			{	
+			{
 				int eta_days,eta_hours,eta_minutes,eta_seconds;
-				eta_days=total_status.eta/(24*60*60);
-				eta_hours=(total_status.eta % (24*60*60))/(60*60);
-				eta_minutes=(total_status.eta % (60*60))/60;
-				eta_seconds=(total_status.eta % 60);
-				
+				int64_t eta_secs = (int64_t)total_status.eta;
+				eta_days=eta_secs/(24*60*60);
+				eta_hours=(eta_secs % (24*60*60))/(60*60);
+				eta_minutes=(eta_secs % (60*60))/60;
+				eta_seconds=(eta_secs % 60);
+
 				/*
 				static unsigned int last_total_status_eta = 0;
 				static unsigned int estim_count = 10;
@@ -605,7 +612,7 @@ JTRSTATUS CJTRWorker::get_status()
 				{*/
 					eta_str = QString("Pass Time Left: %1d%2h%3m%4s  ").arg(eta_days).arg(eta_hours).arg(eta_minutes).arg(eta_seconds);
 				//}
-				
+
 				total_status.percent=100.0f*(float)total_status.time/((float)total_status.time+(float)total_status.eta);
 			}
 			else
@@ -647,6 +654,10 @@ JTRSTATUS CJTRWorker::get_status()
 				arg(total_status.guesses_per_second).
 				arg(total_status.candidates_per_second).
 				arg(total_status.combinations_per_second);
+			jtrstatus.details += QString("  Util:%1 Temp:%2 Fan:%3")
+				.arg(formatTelemetryValue(total_status.utilization, "%"))
+				.arg(formatTelemetryValue(total_status.temperature, "C"))
+				.arg(formatTelemetryValue(total_status.fanspeed, "RPM"));
 
 			jtrstatus.percent_done=total_status.percent;
 			jtrstatus.secs_total = total_status.time;
@@ -676,7 +687,7 @@ QMap<QByteArray,QString> CJTRWorker::get_cracked()
 
 	QDir tempdir(m_ctx->m_temporary_dir);
 	QString potfilename=tempdir.filePath(tempdir.filePath("pot"));
-	
+
 	QFileInfo potinfo(potfilename);
 	if(potinfo.exists())
 	{
@@ -693,7 +704,7 @@ QMap<QByteArray,QString> CJTRWorker::get_cracked()
 			pot = pot.replace("\r", "");
 
 			QStringList potlist=pot.split("\n",QString::SkipEmptyParts);
-			
+
 			m_potsize=potsize;
 
 			foreach(QString item, potlist)
@@ -703,10 +714,10 @@ QMap<QByteArray,QString> CJTRWorker::get_cracked()
 				{
 					QString hash=item.left(colon);
 					QString password=item.mid(colon+1);
-					
+
 					crackedmap.insert(hash.toLatin1(),password);
 				}
-			}			
+			}
 		}
 	}
 
@@ -721,13 +732,13 @@ QMap<QByteArray,QString> CJTRWorker::get_cracked()
 void JTRPASSNODE::Save(QVariant & v)
 {TR;
 	QMap<QString,QVariant> saved;
-	
+
 	saved["revision"] = 2;
 
 	QByteArray ba_gpuinfo;
 	QDataStream ds_gpuinfo(&ba_gpuinfo, QIODevice::WriteOnly);
 	ds_gpuinfo << gpuinfo;
-	
+
 	saved["node"]=node;
 	saved["nodecount"]=nodecount;
 	saved["gpuinfo"] = ba_gpuinfo;
@@ -742,11 +753,11 @@ bool JTRPASSNODE::Load(const QVariant & v)
 {
 	TR;
 	QMap<QString, QVariant> saved = v.toMap();
-	
+
 	node = saved["node"].toInt();
 	nodecount = saved["nodecount"].toInt();
 	if (saved["revision"].toInt() == 1)
-	{	
+	{
 		bool gpu_enable = saved["gpu_enable"].toBool();
 		GPUPLATFORM gpu_platform = (GPUPLATFORM)saved["gpu_platform"].toInt();
 		int gpu_jtrindex = saved["gpu_jtrindex"].toInt();
@@ -778,7 +789,7 @@ bool JTRPASSNODE::Load(const QVariant & v)
 	jtrversion=saved["jtrversion"].toString();
 	node_algorithm=saved["node_algorithm"].toString();
 	preflight_node_algorithm = saved["preflight_node_algorithm"].toString();
-	
+
 	return true;
 }
 
@@ -876,8 +887,8 @@ JTRWORKERCTX::JTRWORKERCTX()
 	m_duration_seconds = 0;
 	m_elapsed_seconds = 0;
 	m_elapsed_seconds_at_start_of_pass = 0;
-	
-	
+
+
 	// Create new temp directory
 	m_temporary_dir = g_pLinkage->NewTemporaryDir();
 }
@@ -902,7 +913,7 @@ void JTRWORKERCTX::Save(QVariant & v)
 		vjtrpasses.append(vjtrpass);
 	}
 	saved["jtrpasses"]=vjtrpasses;
-	
+
 	QDir tempdir(m_temporary_dir);
 	QStringList filenames=tempdir.entryList(QDir::Files | QDir::NoDotAndDotDot);
 	QList<QVariant> tempdircontents;
@@ -926,7 +937,7 @@ void JTRWORKERCTX::Save(QVariant & v)
 	saved["duration_seconds"] = m_duration_seconds;
 	saved["elapsed_seconds"] = m_elapsed_seconds;
 	saved["elapsed_seconds_at_start_of_pass"] = m_elapsed_seconds_at_start_of_pass;
-	
+
 	QList<QVariant> dbsl;
 	foreach(quint32 secsleft, m_duration_block_seconds_left)
 	{
@@ -963,11 +974,11 @@ void JTRWORKERCTX::RewriteFilePaths(QString filepath, QByteArray & contents)
 			Q_ASSERT(0);
 		}
 		out.append(header.toLatin1()+EOL);
-		
+
 		QString argstr=in.readLine();
 		int argcount=argstr.toInt();
 		out.append(argstr.toLatin1()+EOL);
-		
+
 		int arg=0;
 
 		while(!in.atEnd())
@@ -1024,7 +1035,7 @@ bool JTRWORKERCTX::Load(const QVariant & v)
 	}
 
 	QDir tempdir(m_temporary_dir);
-	
+
 	// Unpack saved contents
 	QList<QVariant> tempdircontents=saved["tempdircontents"].toList();
 	foreach(QVariant v,tempdircontents)
@@ -1040,12 +1051,12 @@ bool JTRWORKERCTX::Load(const QVariant & v)
 		{
 			out.write(contents);
 		}
-	}	
+	}
 	m_current_pass=saved["current_pass"].toInt();
 
 	m_duration_unlimited = saved["duration_unlimited"].toBool();
 	m_duration_seconds = saved["duration_seconds"].toUInt();
-	
+
 	m_elapsed_seconds = saved["elapsed_seconds"].toUInt();
 	m_elapsed_seconds_at_start_of_pass = saved["elapsed_seconds_at_start_of_pass"].toUInt();
 
@@ -1056,7 +1067,7 @@ bool JTRWORKERCTX::Load(const QVariant & v)
 	}
 
 	m_current_input_encoding = saved["current_input_encoding"].toUuid();
-	
+
 	return true;
 }
 

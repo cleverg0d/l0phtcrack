@@ -91,7 +91,7 @@ QT5_ADD_RESOURCES(ResourceSources ${lc7password_RESOURCES})
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR} "include" "../api/include" "../external/qtpropertybrowser/src")
 ADD_LIBRARY(lc7password SHARED ${lc7password_SOURCES} ${lc7password_HEADERS} ${lc7password_UI_HEADERS} ${lc7password_RESOURCES} ${ResourceSources})
-TARGET_LINK_LIBRARIES(lc7password qtpropertybrowser)
+TARGET_LINK_LIBRARIES(lc7password qtpropertybrowser lc7core)
 
 qt5_use_modules(lc7password Widgets PrintSupport)
 

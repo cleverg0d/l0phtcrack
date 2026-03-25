@@ -2,7 +2,7 @@
 #include "CLC7CharsetEditor.h"
 
 
-CLC7CharsetEditor::CLC7CharsetEditor() : m_jtrdll("sse2")
+CLC7CharsetEditor::CLC7CharsetEditor() : m_jtrdll(CLC7JTR::GetDefaultJtrDllVersion())
 {TR;
 	ui.setupUi(this);
 

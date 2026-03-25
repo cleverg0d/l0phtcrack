@@ -124,10 +124,11 @@ bool CLC7JTR::ConfigurePassNodes(JTRPASS & pass)
 	// Only one cpu node for single cracks
 	if (pass.jtrmode == "single")
 	{
+		QStringList suppins = GetSupportedInstructionSets();
 		JTRPASSNODE passnode;
 		passnode.node = -1;
 		passnode.nodecount = -1;
-		passnode.jtrversion = "sse2";
+		passnode.jtrversion = suppins.isEmpty() ? GetDefaultJtrDllVersion() : suppins.first();
 		passnode.node_algorithm = GetCPUNodeAlgorithm(pass.hashtype);
 		passnode.preflight_node_algorithm = GetCPUNodeAlgorithm(pass.hashtype);
 
@@ -233,7 +234,7 @@ bool CLC7JTR::ConfigurePassNodes(JTRPASS & pass)
 				passnode.node = -1;
 				passnode.nodecount = -1;
 				passnode.node_algorithm  = jtrkernel;
-				passnode.jtrversion = "sse2"; // Any version will do here since they all have opencl and cuda, pick the most compatible
+				passnode.jtrversion = GetDefaultJtrDllVersion();
 				passnode.preflight_node_algorithm = GetCPUNodeAlgorithm(pass.hashtype);
 
 				pass.nodes.append(passnode);
@@ -856,17 +857,26 @@ bool CLC7JTR::AddPasses(fourcc hashtype, int durationblock)
 
 		// Wordlist
 		pass.wordlist_file = m_config["wordlist"].toString();
-		
-		// Determine count of wordlist
-		m_ctrl->SetStatusText("Counting words in wordlist...");
-		m_ctrl->AppendToActivityLog("Counting words in wordlist...\n");
-		if (!getWordlistCount(pass.wordlist_file, pass.wordlist_count))
+
+		if (pass.wordlist_file == "$$CRACKED$$")
 		{
-			m_error = "Couldn't count words in dictionary file";
-			return false;
+			/* Finalyse uses recovered-password wordlist generated at runtime in jtrworker.
+			 * At AddPasses stage there is no physical file yet, so don't fail here. */
+			pass.wordlist_count = m_accountlist ? m_accountlist->GetAccountCount() : 0;
 		}
-		m_ctrl->SetStatusText(QString("%1 words").arg(pass.wordlist_count));
-		m_ctrl->AppendToActivityLog(QString("%1 words\n").arg(pass.wordlist_count));
+		else
+		{
+			// Determine count of wordlist
+			m_ctrl->SetStatusText("Counting words in wordlist...");
+			m_ctrl->AppendToActivityLog("Counting words in wordlist...\n");
+			if (!getWordlistCount(pass.wordlist_file, pass.wordlist_count))
+			{
+				m_error = "Couldn't count words in dictionary file";
+				return false;
+			}
+			m_ctrl->SetStatusText(QString("%1 words").arg(pass.wordlist_count));
+			m_ctrl->AppendToActivityLog(QString("%1 words\n").arg(pass.wordlist_count));
+		}
 
 		// Encoding
 		QUuid encoding_id = m_config["encoding"].toUuid();
@@ -1120,8 +1130,12 @@ QString CLC7JTR::CalibrationKey()
 	QString calkey = QString("%1:calibration_win32").arg(UUID_LC7JTRPLUGIN.toString());
 #elif PLATFORM == PLATFORM_WIN64
 	QString calkey = QString("%1:calibration_win64").arg(UUID_LC7JTRPLUGIN.toString());
+#elif PLATFORM == PLATFORM_MACOSX
+	QString calkey = QString("%1:calibration_macosx").arg(UUID_LC7JTRPLUGIN.toString());
+#elif PLATFORM == PLATFORM_LINUX
+	QString calkey = QString("%1:calibration_linux").arg(UUID_LC7JTRPLUGIN.toString());
 #else
-#error "key plz"
+	QString calkey = QString("%1:calibration_unknown").arg(UUID_LC7JTRPLUGIN.toString());
 #endif
 	return calkey;
 }
@@ -1660,7 +1674,12 @@ void CLC7JTR::ProcessStatus(void)
 		//m_ctrl->AppendToActivityLog(status+"\n");
 	//}
 
-	m_ctrl->SetStatusText(status.status);
+	QString status_line = status.status;
+	if (!status.details.trimmed().isEmpty())
+	{
+		status_line += " | " + status.details.trimmed();
+	}
+	m_ctrl->SetStatusText(status_line);
 	m_ctrl->UpdateCurrentProgressBar((quint32)status.percent_done);
 
 	// xxx figure out how to detect if cracks are partial. (full hash exists for two halves account?)
@@ -1688,6 +1707,7 @@ void CLC7JTR::ProcessStatus(void)
 					lc7hash.cracktype = m_config["name"].toString();
 
 					m_accountlist->ReplaceAccountAt(acctnum.first, acct);
+					m_ctrl->AppendToActivityLog(QString("%1:%2\n").arg(acct.username, lc7hash.password));
 				}
 				else if (lc7hash.crackstate == CRACKSTATE_NOT_CRACKED)
 				{
@@ -1720,6 +1740,7 @@ void CLC7JTR::ProcessStatus(void)
 					lc7hash.cracktype = m_config["name"].toString();
 
 					m_accountlist->ReplaceAccountAt(acctnum.first, acct);
+					m_ctrl->AppendToActivityLog(QString("%1:%2\n").arg(acct.username, lc7hash.password));
 				}
 				else if (lc7hash.crackstate == CRACKSTATE_NOT_CRACKED)
 				{
@@ -1753,6 +1774,7 @@ void CLC7JTR::ProcessStatus(void)
 					lc7hash.cracktype = m_config["name"].toString();
 					
 					m_accountlist->ReplaceAccountAt(acctnum.first, acct);
+					m_ctrl->AppendToActivityLog(QString("%1:%2\n").arg(acct.username, lc7hash.password));
 				}
 				/*
 				else if (acct.crackstate == CRACKSTATE_NOT_CRACKED)
@@ -1821,6 +1843,17 @@ QStringList CLC7JTR::GetSupportedInstructionSets(bool include_disabled)
 
 	ILC7CPUInformation *cpuid = g_pLinkage->GetCPUInformation();
 
+#if defined(__aarch64__) || defined(__arm64__)
+	// Apple Silicon / ARM64: no x86 instruction sets; use "apple-silicon" as baseline
+	{
+		QString isetkey = UUID_LC7JTRPLUGIN.toString() + ":enableapplesilicon";
+		if (g_pLinkage->GetSettings()->value(isetkey, true).toBool() || include_disabled)
+		{
+			suppins.append("apple-silicon");
+		}
+	}
+#endif
+
 	if (cpuid->SSE2())
 	{
 		QString isetkeysse2 = UUID_LC7JTRPLUGIN.toString() + ":enablesse2";
@@ -1877,8 +1910,29 @@ QStringList CLC7JTR::GetSupportedInstructionSets(bool include_disabled)
 	return suppins;
 }
 
+QString CLC7JTR::GetDefaultJtrDllVersion()
+{
+	QStringList suppins = GetSupportedInstructionSets();
+	if (!suppins.isEmpty())
+	{
+		return suppins.first();
+	}
+#if defined(__aarch64__) || defined(__arm64__)
+	return "apple-silicon";
+#else
+	return "sse2";
+#endif
+}
+
 QVector<LC7GPUInfo> CLC7JTR::GetSupportedGPUInfo(bool include_disabled)
 {
+#ifdef __APPLE__
+	// Temporary safety guard for macOS startup stability:
+	// GPU probing through jtrdll can crash in some environments during app init.
+	// Return no GPUs instead of aborting the whole UI.
+	Q_UNUSED(include_disabled);
+	return QVector<LC7GPUInfo>();
+#else
 	CLC7JTRGPUManager gpuinfo;
 	gpuinfo.Detect();
 	QVector<LC7GPUInfo> gi = gpuinfo.GetGPUInfo();
@@ -1911,6 +1965,7 @@ QVector<LC7GPUInfo> CLC7JTR::GetSupportedGPUInfo(bool include_disabled)
 	}
 	
 	return gi_filtered;
+#endif
 }
 
 

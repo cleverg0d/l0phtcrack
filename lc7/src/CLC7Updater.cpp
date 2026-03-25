@@ -38,8 +38,12 @@ void CLC7Updater::run()
 	#else
 		QString updatejson = "https://s3.amazonaws.com/updates.lc7/lc7/win32/release/current.json";
 	#endif
+#elif (PLATFORM == PLATFORM_MACOSX)
+	QString updatejson = "https://s3.amazonaws.com/updates.lc7/lc7/macos/release/current.json";
+#elif (PLATFORM == PLATFORM_LINUX)
+	QString updatejson = "https://s3.amazonaws.com/updates.lc7/lc7/linux/release/current.json";
 #else
-	#error "Specify URL here"
+	QString updatejson = "";
 #endif
 
 	// Get current version
@@ -154,7 +158,9 @@ void CLC7Updater::doUpdate()
 		return;
 	}
 
+#ifdef _WIN32
 	g_jom.ReleaseChildProcesses();
+#endif
 
 	m_ctrl->GetGUILinkage()->Exit(false);
 
