@@ -979,7 +979,7 @@ bool CLC7Controller::StartupPlugins(void)
 			{
 				message.append(QString("%1: %2\n").arg(lib->GetDisplayName()).arg(lib->GetFailureReason()));
 				m_pGUILinkage->ErrorMessage("System can not start up",
-					QString("A critical system plugin failed to start:\n\n%1\nYour system may be incompatible with L0phtCrack 7 or your installation is corrupt. Reinstall L0phtCrack 7 and if that doesn't work, contact support@l0phtcrack.com.").arg(message));
+					QString("A critical system plugin failed to start:\n\n%1\nYour system may be incompatible with L0phtCrack 7 or your installation is corrupt. Reinstall L0phtCrack 7 and if that doesn't work, contact support@securixy.kz.").arg(message));
 				return false;
 			}
 			else

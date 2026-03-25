@@ -118,7 +118,7 @@ void LC7Main::closeEvent (QCloseEvent *evt)
 		}
 		if(!m_ctrl->CloseSession())
 		{
-			m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't close session", "Session close failed. Contact support@l0phtcrack.com.");
+			m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't close session", "Session close failed. Contact support@securixy.kz.");
 			UpdateUI();
 		    evt->ignore();
     		return;
@@ -571,14 +571,14 @@ bool LC7Main::DoNewSession(void)
 		}
 		if (!m_ctrl->CloseSession())
 		{
-			m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't close session", "Session close failed. Contact support@l0phtcrack.com.");
+			m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't close session", "Session close failed. Contact support@securixy.kz.");
 			UpdateUI();
 			return false;
 		}
 	}
 	if (!m_ctrl->NewSession())
 	{
-		m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't create session", "Session creation failed. Contact support@l0phtcrack.com.");
+		m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't create session", "Session creation failed. Contact support@securixy.kz.");
 		UpdateUI();
 		return false;
 	}
@@ -606,7 +606,7 @@ bool LC7Main::DoOpenSession(QString requested_session)
 		}
 		if (!m_ctrl->CloseSession())
 		{
-			m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't close session", "Session close failed. Contact support@l0phtcrack.com.");
+			m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't close session", "Session close failed. Contact support@securixy.kz.");
 			UpdateUI();
 			return false;
 		}
@@ -654,7 +654,7 @@ bool LC7Main::DoPauseBackgroundSession(QString sessionFile)
 {TR;
 	if (!PauseOrStopAllQueues(false))
 	{
-		m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't stop session", "Session pause or stop failed. Contact support@l0phtcrack.com.");
+		m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't stop session", "Session pause or stop failed. Contact support@securixy.kz.");
 		UpdateUI();
 		return false;
 	}
@@ -813,7 +813,7 @@ bool LC7Main::DoCloseSession(bool force, bool allow_startup_dialog)
 
 	if (!PauseOrStopAllQueues(true))
 	{
-		m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't stop session", "Session pause or stop failed. Contact support@l0phtcrack.com.");
+		m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't stop session", "Session pause or stop failed. Contact support@securixy.kz.");
 		UpdateUI();
 		return false;
 	}
@@ -831,7 +831,7 @@ bool LC7Main::DoCloseSession(bool force, bool allow_startup_dialog)
 	{
 		if (Attach::isInteractiveSession())
 		{
-			m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't close session", "Session close failed. Contact support@l0phtcrack.com.");
+			m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't close session", "Session close failed. Contact support@securixy.kz.");
 		}
 		UpdateUI();
 		return false;
@@ -1655,13 +1655,13 @@ void LC7Main::slot_processCommandLine()
 		{
 			Q_ASSERT(0);
 			m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't open resume session",
-				QString("Couldn't resume background session. Session file may be lost, or at '%1'. Contact support@l0phtcrack.com").arg(resumefile));
+				QString("Couldn't resume background session. Session file may be lost, or at '%1'. Contact support@securixy.kz").arg(resumefile));
 			return;
 		}
 		if (!m_batch_workqueue->StartRequest())
 		{
 			m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't start resume session",
-				QString("Couldn't start batch queue. Contact support@l0phtcrack.com").arg(resumefile));
+				QString("Couldn't start batch queue. Contact support@securixy.kz").arg(resumefile));
 			return;
 		}
 		return;
@@ -1788,7 +1788,7 @@ bool LC7Main::DoExecuteTask(QString taskid, bool interrupting)
 	{
 		if (Attach::isInteractiveSession() && interrupting)
 		{
-			m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't start task", "Couldn't execute task. Contact support@l0phtcrack.com.");
+			m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't start task", "Couldn't execute task. Contact support@securixy.kz.");
 		}
 		UpdateUI();
 		return false;
@@ -1932,7 +1932,7 @@ bool LC7Main::DoRestoreAutosaveSession(void)
 			}
 			if (!m_ctrl->CloseSession())
 			{
-				m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't close session", "Session close failed. Contact support@l0phtcrack.com.");
+				m_ctrl->GetGUILinkage()->ErrorMessage("Couldn't close session", "Session close failed. Contact support@securixy.kz.");
 				UpdateUI();
 				return false;
 			}

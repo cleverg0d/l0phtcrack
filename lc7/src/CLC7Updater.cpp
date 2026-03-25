@@ -66,7 +66,7 @@ void CLC7Updater::run()
 	{
 		if (manual_check)
 		{
-			m_ctrl->GetGUILinkage()->ErrorMessage("L0phtCrack Update", "Unable to parse update. Notify support@l0phtcrack.com.");
+			m_ctrl->GetGUILinkage()->ErrorMessage("L0phtCrack Update", "Unable to parse update. Notify support@securixy.kz.");
 		}
 		return;
 	}

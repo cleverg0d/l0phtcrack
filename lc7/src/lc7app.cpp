@@ -105,7 +105,7 @@ void CLC7App::ParseCommandLine()
 	QStringList args = arguments();
 
 	QCoreApplication::setOrganizationName("L0pht Holdings LLC");
-	QCoreApplication::setOrganizationDomain("www.l0phtcrack.com");
+	QCoreApplication::setOrganizationDomain("securixy.kz");
 	QCoreApplication::setApplicationName("L0phtCrack 7 (" PLATFORM_NAME ")");
 	QCoreApplication::setApplicationVersion(VERSION_STRING);
 

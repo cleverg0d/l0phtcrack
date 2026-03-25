@@ -856,7 +856,7 @@ void CLC7Calibrate::runCalibration(void)
 			{
 				if (!g_pLinkage->GetGUILinkage()->YesNoBox("Calibration Failed",
 					calcell.cpt.gpuplatform() == GPU_NONE ?
-					"Calibration for this hash type failed.<br><br>Please report this event to support@l0phtcrack.com.<br><br>Do you wish to continue calibrating the other hash types?":
+					"Calibration for this hash type failed.<br><br>Please report this event to support@securixy.kz.<br><br>Do you wish to continue calibrating the other hash types?":
 					"Calibration for this hash type failed. This is a GPU hash type, and your drivers may be out of date. Please ensure you are running the latest driver version, available here:<br><br>"
 					"AMD: <a href=http://support.amd.com/en-us/download>http://support.amd.com/en-us/download</a><br>"
 					"NVIDIA: <a href=http://www.nvidia.com/Download/index.aspx>http://www.nvidia.com/Download/index.aspx</a><br><br>"

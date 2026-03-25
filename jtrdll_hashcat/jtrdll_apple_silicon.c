@@ -77,6 +77,7 @@ static volatile int    g_stage    = 0;   /* 0=idle 1=init 2=running 3=done */
 static volatile double g_pct      = 0.0;
 static volatile double g_elapsed  = 0.0;
 static volatile double g_eta      = 0.0;
+static volatile time_t g_start_time = 0; /* wall-clock start of current pass */
 static volatile uint64_t g_guesses = 0;
 static volatile uint64_t g_cands   = 0;
 static volatile double g_speed    = 0.0;
@@ -778,8 +779,9 @@ static int run_hashcat(struct JTRDLL_HOOKS *hooks)
     /* parent */
 
     pthread_mutex_lock(&g_mutex);
-    g_pid   = pid;
-    g_stage = 2;
+    g_pid        = pid;
+    g_stage      = 2;
+    g_start_time = time(NULL);
     pthread_mutex_unlock(&g_mutex);
 
     struct reader_ctx *rout = malloc(sizeof(*rout));
@@ -929,7 +931,7 @@ int jtrdll_main(int argc, char **argv, struct JTRDLL_HOOKS *hooks)
     /* potfile stores hash:plain — read it to convert to JtR format */
     hcarg_addf("--potfile-path=%s", hc_potfile);
     hcarg_add("--status");
-    hcarg_add("--status-timer=2");
+    hcarg_add("--status-timer=1");
     /* Apple hashcat uses OpenCL stack for GPU compute; do not disable it. */
     hcarg_add("--optimized-kernel-enable");
     hcarg_add("--workload-profile=4");
@@ -1046,15 +1048,16 @@ int jtrdll_main(int argc, char **argv, struct JTRDLL_HOOKS *hooks)
 
     /* ---- Reset status ---- */
     pthread_mutex_lock(&g_mutex);
-    g_stage   = 1;
-    g_pct     = 0.0;
-    g_elapsed = 0.0;
-    g_eta     = 0.0;
-    g_guesses = 0;
-    g_cands   = 0;
-    g_speed   = 0.0;
-    g_word1[0]= '\0';
-    g_word2[0]= '\0';
+    g_stage      = 1;
+    g_pct        = 0.0;
+    g_elapsed    = 0.0;
+    g_eta        = 0.0;
+    g_guesses    = 0;
+    g_cands      = 0;
+    g_speed      = 0.0;
+    g_start_time = 0;
+    g_word1[0]   = '\0';
+    g_word2[0]   = '\0';
     pthread_mutex_unlock(&g_mutex);
 
     /* ---- Run hashcat ---- */
@@ -1084,7 +1087,12 @@ void jtrdll_get_status(struct JTRDLL_STATUS *st)
     memset(st, 0, sizeof(*st));
     st->stage                = g_stage;
     st->percent              = g_pct;
-    st->time                 = g_elapsed;
+    /* Use wall-clock elapsed so progress bars work even if hashcat
+       does not emit Time.Running lines (it emits Time.Started instead). */
+    if (g_stage == 2 && g_start_time > 0)
+        st->time = (double)(time(NULL) - g_start_time);
+    else
+        st->time = g_elapsed;
     st->eta                  = g_eta;
     st->guess_count          = g_guesses;
     st->candidates           = g_cands;

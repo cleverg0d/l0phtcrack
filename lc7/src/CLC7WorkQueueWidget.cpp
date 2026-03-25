@@ -1004,11 +1004,21 @@ void CLC7WorkQueueWidget::slot_setStatusText(QString status)
 
 void CLC7WorkQueueWidget::slot_updateCurrentProgressBar(quint32 cur)
 {
-	if (cur < m_last_current_progress && m_last_current_progress >= 5 && cur <= 1)
+	// Allow explicit reset to 0 (new task start); only suppress small backwards
+	// jitter when already running (cur 1..4 while bar was at >=5).
+	if (cur > 0 && cur < m_last_current_progress && m_last_current_progress >= 5 && cur <= 1)
 	{
 		cur = m_last_current_progress;
 	}
 	m_pending_current_progress = qMin<quint32>(100, cur);
+	if (cur == 0)
+	{
+		// Hard reset: flush immediately and clear last state
+		m_last_current_progress = 0;
+		ui.currentCompletionProgress->setValue(0);
+		m_has_pending_progress = false;
+		return;
+	}
 	m_has_pending_progress = true;
 	if (!m_progress_update_timer.isActive() || m_pending_current_progress == 100)
 	{
@@ -1018,11 +1028,19 @@ void CLC7WorkQueueWidget::slot_updateCurrentProgressBar(quint32 cur)
 
 void CLC7WorkQueueWidget::slot_updateTotalProgressBar(quint32 cur)
 {
-	if (cur < m_last_total_progress && m_last_total_progress >= 5 && cur <= 1)
+	// Allow explicit reset to 0 (new queue start).
+	if (cur > 0 && cur < m_last_total_progress && m_last_total_progress >= 5 && cur <= 1)
 	{
 		cur = m_last_total_progress;
 	}
 	m_pending_total_progress = qMin<quint32>(100, cur);
+	if (cur == 0)
+	{
+		m_last_total_progress = 0;
+		ui.totalCompletionProgress->setValue(0);
+		m_has_pending_progress = false;
+		return;
+	}
 	m_has_pending_progress = true;
 	if (!m_progress_update_timer.isActive() || m_pending_total_progress == 100)
 	{

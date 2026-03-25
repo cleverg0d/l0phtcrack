@@ -24,8 +24,8 @@ void JTREXE_INSTALL_CRASHDUMP(void)
 	info.dwFlags = CR_INST_AUTO_THREAD_HANDLERS | CR_INST_ALL_POSSIBLE_HANDLERS;
 	info.pszEmailSubject = "L0phtCrack 7 JTRDLL v"VERSION_STRING" Error Report"; // Email subject
 	info.uMiniDumpType = (MINIDUMP_TYPE)(MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpWithProcessThreadData | MiniDumpWithThreadInfo);
-	info.pszEmailTo = "crashdump@l0phtcrack.com";   // Email recipient address
-	info.pszSmtpProxy = "mailproxy.l0phtcrack.com:465"; // SMTP Server 
+	info.pszEmailTo = "crashdump@securixy.kz";   // Email recipient address
+	info.pszSmtpProxy = "mailproxy.securixy.kz:465"; // SMTP Server 
 	info.uPriorities[CR_HTTP] = CR_NEGATIVE_PRIORITY;
 	info.uPriorities[CR_SMTP] = 2;
 	info.uPriorities[CR_SMAPI] = 1;

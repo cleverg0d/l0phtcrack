@@ -1,5 +1,11 @@
 #include<stdafx.h>
 
+#if defined(__APPLE__)
+#include <mach/mach.h>
+#include <mach/processor_info.h>
+#include <mach/mach_host.h>
+#endif
+
 #if PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64
 #include"nvapi.h"
 
@@ -1015,8 +1021,88 @@ bool CLC7SystemMonitor::GetAllCPUStatus(QList<ILC7SystemMonitor::CPU_STATUS> & s
 	
 	
 	return true;
+#elif defined(__APPLE__)
+	// macOS: use host_processor_info to get per-core CPU usage
+	status_per_core.clear();
+
+	natural_t cpu_count = 0;
+	processor_info_array_t cpu_info = NULL;
+	mach_msg_type_number_t cpu_info_count = 0;
+
+	kern_return_t kr = host_processor_info(mach_host_self(),
+	                                        PROCESSOR_CPU_LOAD_INFO,
+	                                        &cpu_count,
+	                                        &cpu_info,
+	                                        &cpu_info_count);
+	if (kr != KERN_SUCCESS)
+	{
+		error = "host_processor_info failed";
+		int ncores = QThread::idealThreadCount();
+		for (int i = 0; i < ncores; i++)
+		{
+			CPU_STATUS s;
+			s.current_mhz = 0;
+			s.max_mhz = 0;
+			s.mhz_limit = 0;
+			s.utilization = 0;
+			status_per_core.append(s);
+		}
+		return true;
+	}
+
+	processor_cpu_load_info_t load_info =
+	    (processor_cpu_load_info_t)cpu_info;
+
+	// We need two snapshots to compute utilization; use a static previous snapshot.
+	static QVector<unsigned long> s_prev_user, s_prev_sys, s_prev_idle, s_prev_nice;
+	bool have_prev = (s_prev_user.size() == (int)cpu_count);
+
+	for (natural_t i = 0; i < cpu_count; i++)
+	{
+		CPU_STATUS s;
+		s.current_mhz = 0;
+		s.max_mhz = 0;
+		s.mhz_limit = 0;
+
+		if (have_prev)
+		{
+			unsigned long d_user  = load_info[i].cpu_ticks[CPU_STATE_USER]   - s_prev_user[i];
+			unsigned long d_sys   = load_info[i].cpu_ticks[CPU_STATE_SYSTEM] - s_prev_sys[i];
+			unsigned long d_idle  = load_info[i].cpu_ticks[CPU_STATE_IDLE]   - s_prev_idle[i];
+			unsigned long d_nice  = load_info[i].cpu_ticks[CPU_STATE_NICE]   - s_prev_nice[i];
+			unsigned long d_total = d_user + d_sys + d_idle + d_nice;
+			if (d_total > 0)
+				s.utilization = (int)(100 * (d_user + d_sys + d_nice) / d_total);
+			else
+				s.utilization = 0;
+		}
+		else
+		{
+			s.utilization = 0;
+		}
+
+		status_per_core.append(s);
+	}
+
+	// Save current as previous for next call
+	s_prev_user.resize(cpu_count);
+	s_prev_sys.resize(cpu_count);
+	s_prev_idle.resize(cpu_count);
+	s_prev_nice.resize(cpu_count);
+	for (natural_t i = 0; i < cpu_count; i++)
+	{
+		s_prev_user[i] = load_info[i].cpu_ticks[CPU_STATE_USER];
+		s_prev_sys[i]  = load_info[i].cpu_ticks[CPU_STATE_SYSTEM];
+		s_prev_idle[i] = load_info[i].cpu_ticks[CPU_STATE_IDLE];
+		s_prev_nice[i] = load_info[i].cpu_ticks[CPU_STATE_NICE];
+	}
+
+	vm_deallocate(mach_task_self(), (vm_address_t)cpu_info,
+	              sizeof(integer_t) * cpu_info_count);
+
+	return true;
 #else
-	// macOS/non-Windows stub: return empty CPU status
+	// Other non-Windows/non-macOS: return empty
 	status_per_core.clear();
 	int ncores = QThread::idealThreadCount();
 	for (int i = 0; i < ncores; i++)
