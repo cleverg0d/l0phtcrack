@@ -7,6 +7,8 @@
 ![Engine](https://img.shields.io/badge/engine-hashcat%207.x-orange)
 ![Version](https://img.shields.io/badge/version-7.3.0-informational)
 
+![L0phtCrack 7 macOS — main window](docs/screenshots/main-window.png)
+
 ---
 
 ## About
