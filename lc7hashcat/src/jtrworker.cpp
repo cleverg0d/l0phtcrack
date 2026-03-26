@@ -323,7 +323,7 @@ void CJTRWorker::run()
 		
 		if (run_pass)
 		{
-			m_ctrl->AppendToActivityLog(QString("\nStarting pass: %1\n").arg(pass.passdescription));
+			m_ctrl->AppendToActivityLog(QString("Starting pass: %1\n").arg(pass.passdescription));
 			failed = !RunPass(pass, error);
 		}
 		

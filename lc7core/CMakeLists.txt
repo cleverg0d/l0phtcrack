@@ -120,6 +120,10 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR} "include" "../api/include" "../e
 ADD_LIBRARY(lc7core SHARED ${lc7core_SOURCES} ${lc7core_HEADERS} ${lc7core_UI_HEADERS} )
 TARGET_LINK_LIBRARIES(lc7core qt5keychain quazip ${PLATFORM_LIBS})
 
+if(APPLE)
+    target_link_libraries(lc7core "-framework IOKit" "-framework CoreFoundation")
+endif()
+
 qt5_use_modules(lc7core Widgets Sql)
 
 ADD_PRECOMPILED_HEADER(lc7core stdafx lc7core_SOURCES)

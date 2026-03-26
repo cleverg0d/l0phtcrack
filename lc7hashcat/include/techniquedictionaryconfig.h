@@ -13,8 +13,8 @@ class TechniqueDictionaryConfig : public QWidget
 public:
 
 	TechniqueDictionaryConfig();
-	~TechniqueDictionaryConfig();	
-	
+	~TechniqueDictionaryConfig();
+
 	void setConfig(QVariant config);
 	QVariant getConfig(void);
 
@@ -28,9 +28,13 @@ private:
 	void UpdateUI();
 
 private slots:
-	
+
 	void slot_wordListEdit_textChanged(const QString & text);
 	void slot_browseWordlistButton_clicked(bool checked);
+	void slot_browseFolderButton_clicked(bool checked);
+	void slot_browseCustomRuleButton_clicked(bool checked);
+	void slot_clearCustomRuleButton_clicked(bool checked);
+	void slot_customRuleEdit_textChanged(const QString & text);
 
 	void slot_encodingCombo_currentIndexChanged(int index);
 	void slot_permutationRulesCombo_currentIndexChanged(int index);
@@ -39,7 +43,7 @@ private slots:
 	void slot_durationHoursText_textChanged(const QString & text);
 	void slot_durationMinutesText_textChanged(const QString & text);
 	void slot_unlimitedCheckBox_clicked(bool checked);
-	
+
 signals:
 	void sig_isValid(bool valid, QString why);
 

@@ -831,17 +831,6 @@ bool CLC7JTR::AddPasses(fourcc hashtype, int durationblock)
 
 		// Wordlist
 		pass.wordlist_file = m_config["wordlist"].toString();
-		
-		// Determine count of wordlist
-		m_ctrl->SetStatusText("Counting words in wordlist...");
-		m_ctrl->AppendToActivityLog("Counting words in wordlist...\n");
-		if (!getWordlistCount(pass.wordlist_file, pass.wordlist_count))
-		{
-			m_error = "Couldn't count words in dictionary file";
-			return false;
-		}
-		m_ctrl->SetStatusText(QString("%1 words").arg(pass.wordlist_count));
-		m_ctrl->AppendToActivityLog(QString("%1 words\n").arg(pass.wordlist_count));
 
 		// Encoding
 		QUuid encoding_id = m_config["encoding"].toUuid();
@@ -863,26 +852,105 @@ bool CLC7JTR::AddPasses(fourcc hashtype, int durationblock)
 		QMap<QString, QVariant> encodingconfig = encoding->config().toMap();
 		pass.encoding = encodingconfig["jtrname"].toString();
 
-		// Rule
-		QUuid rule_id = m_config["rule"].toUuid();
-		if (rule_id.isNull())
+		// Rule: check for custom rule file override, otherwise use preset
+		QString custom_rule_file = m_config["custom_rule_file"].toString();
+		if (!custom_rule_file.isEmpty() && QFileInfo(custom_rule_file).exists())
 		{
-			m_error = "Unknown rule id";
-			return false;
+			pass.rule = custom_rule_file;
 		}
-
-		ILC7PresetGroup *rules = manager->presetGroup(QString("%1:rules").arg(UUID_LC7JTRPLUGIN.toString()));
-		ILC7Preset *rule = rules->presetById(rule_id);
-		if (rule == NULL)
+		else
 		{
-			m_error = "Unknown rule";
-			return false;
-		}
+			QUuid rule_id = m_config["rule"].toUuid();
+			if (rule_id.isNull())
+			{
+				m_error = "Unknown rule id";
+				return false;
+			}
 
-		QMap<QString, QVariant> ruleconfig = rule->config().toMap();
-		pass.rule = ruleconfig["jtrname"].toString();
+			ILC7PresetGroup *rules = manager->presetGroup(QString("%1:rules").arg(UUID_LC7JTRPLUGIN.toString()));
+			ILC7Preset *rule = rules->presetById(rule_id);
+			if (rule == NULL)
+			{
+				m_error = "Unknown rule";
+				return false;
+			}
+
+			QMap<QString, QVariant> ruleconfig = rule->config().toMap();
+			pass.rule = ruleconfig["jtrname"].toString();
+		}
 
 		pass.leet = m_config["leet"].toBool();
+
+		// ---- Folder expansion: one pass per wordlist file in folder ----
+		if (pass.wordlist_file.startsWith("$$FOLDER:"))
+		{
+			QString folderPath = pass.wordlist_file.mid(9);
+			QDir dir(folderPath);
+			QStringList filters;
+			filters << "*.txt" << "*.lst" << "*.dic" << "*.md";
+			QStringList files = dir.entryList(filters, QDir::Files, QDir::Name);
+			if (files.isEmpty())
+			{
+				m_error = "No wordlist files found in selected folder";
+				return false;
+			}
+			for (const QString &filename : files)
+			{
+				JTRPASS wlpass = pass;
+				wlpass.wordlist_file = dir.absoluteFilePath(filename);
+				wlpass.passdescription = QString("Wordlist Crack (%1) - %2").arg(lc7hashtype.description, filename);
+				m_ctrl->SetStatusText(QString("Counting words: %1").arg(filename));
+				if (!getWordlistCount(wlpass.wordlist_file, wlpass.wordlist_count))
+					wlpass.wordlist_count = 0;
+				if (!ConfigurePassNodes(wlpass))
+					return false;
+				wlpass.passnumber = m_ctx->m_jtrpasses.count();
+				m_ctx->m_jtrpasses.append(wlpass);
+			}
+			return true;
+		}
+
+		// ---- Finalyse "all rules" mode: one pass per .rule file ----
+		if (pass.wordlist_file == "$$CRACKED$$" && m_config["all_rules"].toBool())
+		{
+			QString rulesDir = "/usr/local/share/doc/hashcat/rules";
+			QDir dir(rulesDir);
+			QStringList ruleFiles = dir.entryList({"*.rule"}, QDir::Files, QDir::Name);
+			if (ruleFiles.isEmpty())
+			{
+				// Fall back to default buka_400k rule
+				if (!ConfigurePassNodes(pass))
+					return false;
+				pass.passnumber = m_ctx->m_jtrpasses.count();
+				m_ctx->m_jtrpasses.append(pass);
+				return true;
+			}
+			for (const QString &ruleFile : ruleFiles)
+			{
+				JTRPASS rulepass = pass;
+				rulepass.rule = dir.absoluteFilePath(ruleFile);
+				rulepass.passdescription = QString("Finalyse - %1 (%2)").arg(ruleFile, lc7hashtype.description);
+				if (!ConfigurePassNodes(rulepass))
+					return false;
+				rulepass.passnumber = m_ctx->m_jtrpasses.count();
+				m_ctx->m_jtrpasses.append(rulepass);
+			}
+			return true;
+		}
+
+		// ---- Normal single wordlist (skip word count for $$CRACKED$$ - generated at runtime) ----
+		if (pass.wordlist_file != "$$CRACKED$$")
+		{
+			m_ctrl->SetStatusText("Counting words in wordlist...");
+			m_ctrl->AppendToActivityLog("Counting words in wordlist...\n");
+			if (!getWordlistCount(pass.wordlist_file, pass.wordlist_count))
+			{
+				m_error = "Couldn't count words in dictionary file";
+				return false;
+			}
+			m_ctrl->SetStatusText(QString("%1 words").arg(pass.wordlist_count));
+			m_ctrl->AppendToActivityLog(QString("%1 words\n").arg(pass.wordlist_count));
+		}
 
 	}
 	else if(pass.jtrmode=="incremental")
@@ -1000,6 +1068,7 @@ bool CLC7JTR::AddPasses(fourcc hashtype, int durationblock)
 		for (; numchars <= pass.num_chars_max; numchars++)
 		{
 			JTRPASS maskpass = pass;
+			maskpass.passdescription = pass.passdescription + QString(" (%1 chars)").arg(numchars);
 			maskpass.num_chars_min = (numchars == 1 && pass.num_chars_min==0)?0:numchars;
 			maskpass.num_chars_max = numchars;
 

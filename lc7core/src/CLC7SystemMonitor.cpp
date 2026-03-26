@@ -4,6 +4,8 @@
 #include <mach/mach.h>
 #include <mach/processor_info.h>
 #include <mach/mach_host.h>
+#include <IOKit/IOKitLib.h>
+#include <CoreFoundation/CoreFoundation.h>
 #endif
 
 #if PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64
@@ -1743,6 +1745,110 @@ bool CLC7SystemMonitor::GetAllGPUStatus(QList<ILC7SystemMonitor::GPU_STATUS> & s
 {
 	QMutexLocker lock(&m_mutex);
 	status_per_core.clear();
+
+#if defined(__APPLE__)
+	// Use IOKit to read GPU utilization from IOAccelerator (works on Apple Silicon and AMD/Intel GPUs)
+	CFMutableDictionaryRef matching = IOServiceMatching("IOAccelerator");
+	if (!matching)
+		return true;
+
+	io_iterator_t iter = IO_OBJECT_NULL;
+	kern_return_t kr = IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iter);
+	if (kr != KERN_SUCCESS || iter == IO_OBJECT_NULL)
+		return true;
+
+	io_registry_entry_t entry;
+	while ((entry = IOIteratorNext(iter)) != IO_OBJECT_NULL)
+	{
+		CFMutableDictionaryRef properties = NULL;
+		kr = IORegistryEntryCreateCFProperties(entry, &properties, kCFAllocatorDefault, 0);
+		if (kr == KERN_SUCCESS && properties)
+		{
+			// GPU stats are in "PerformanceStatistics" dictionary
+			CFDictionaryRef perf = (CFDictionaryRef)CFDictionaryGetValue(properties,
+				CFSTR("PerformanceStatistics"));
+			if (perf && CFGetTypeID(perf) == CFDictionaryGetTypeID())
+			{
+				GPU_STATUS gs;
+				gs.gpu_name = "Apple GPU";
+				gs.gpu_type = "Apple";
+				gs.utilization = 0;
+				gs.temperature = 0;
+				gs.fanspeed = 0;
+				gs.fanspeed_rpm = 0;
+
+				// Try various utilization key names used across macOS versions and GPU types
+				static const CFStringRef util_keys[] = {
+					CFSTR("Device Utilization %"),
+					CFSTR("utilization"),
+					CFSTR("GPU Activity(Renderer) %"),
+					CFSTR("GPU Activity %"),
+					CFSTR("Utilization %"),
+					NULL
+				};
+				for (int ki = 0; util_keys[ki]; ki++)
+				{
+					CFTypeRef val = CFDictionaryGetValue(perf, util_keys[ki]);
+					if (val && CFGetTypeID(val) == CFNumberGetTypeID())
+					{
+						long long n = 0;
+						CFNumberGetValue((CFNumberRef)val, kCFNumberLongLongType, &n);
+						gs.utilization = (qreal)n;
+						break;
+					}
+				}
+
+				// Try temperature
+				static const CFStringRef temp_keys[] = {
+					CFSTR("Temperature(C)"),
+					CFSTR("temperature"),
+					CFSTR("GPU Temperature"),
+					NULL
+				};
+				for (int ki = 0; temp_keys[ki]; ki++)
+				{
+					CFTypeRef val = CFDictionaryGetValue(perf, temp_keys[ki]);
+					if (val && CFGetTypeID(val) == CFNumberGetTypeID())
+					{
+						long long n = 0;
+						CFNumberGetValue((CFNumberRef)val, kCFNumberLongLongType, &n);
+						gs.temperature = (qreal)n;
+						break;
+					}
+				}
+
+				// Try fan speed
+				CFTypeRef fan = CFDictionaryGetValue(perf, CFSTR("Fan Speed(%)"));
+				if (fan && CFGetTypeID(fan) == CFNumberGetTypeID())
+				{
+					long long n = 0;
+					CFNumberGetValue((CFNumberRef)fan, kCFNumberLongLongType, &n);
+					gs.fanspeed = (qreal)n;
+				}
+
+				// Get GPU name from device name property
+				CFStringRef nameRef = (CFStringRef)IORegistryEntryCreateCFProperty(
+					entry, CFSTR("IOAccelRevision"), kCFAllocatorDefault, 0);
+				if (!nameRef)
+					nameRef = (CFStringRef)IORegistryEntryCreateCFProperty(
+						entry, CFSTR("model"), kCFAllocatorDefault, 0);
+				if (nameRef && CFGetTypeID(nameRef) == CFStringGetTypeID())
+				{
+					char buf[256] = {0};
+					CFStringGetCString(nameRef, buf, sizeof(buf), kCFStringEncodingUTF8);
+					if (buf[0]) gs.gpu_name = QString::fromUtf8(buf);
+					CFRelease(nameRef);
+				}
+
+				status_per_core.append(gs);
+			}
+			CFRelease(properties);
+		}
+		IOObjectRelease(entry);
+	}
+	IOObjectRelease(iter);
+#endif // __APPLE__
+
 	return true;
 }
 

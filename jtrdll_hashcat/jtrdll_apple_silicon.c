@@ -21,6 +21,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <limits.h>
+#include <dirent.h>
 #include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -962,7 +963,58 @@ int jtrdll_main(int argc, char **argv, struct JTRDLL_HOOKS *hooks)
         /* Wordlist / Dictionary mode */
         hcarg_add("-a0");
         hcarg_add(hc_hashfile);
-        hcarg_add(jtr_wordlist);
+
+        if (strncmp(jtr_wordlist, "$$FOLDER:", 9) == 0) {
+            /* Folder mode: add each wordlist file as a separate arg to hashcat.
+             * Hashcat processes them sequentially with one GPU initialization.
+             * Files must be sorted alphabetically to match what the user sees. */
+            const char *folder_path = jtr_wordlist + 9;
+            DIR *folder_dir = opendir(folder_path);
+            int files_added = 0;
+            if (folder_dir) {
+                /* Collect matching filenames for sorting */
+                char *names[4096];
+                int nnames = 0;
+                struct dirent *ent;
+                static const char *valid_exts[] = {".txt", ".lst", ".dic", ".md", NULL};
+                while ((ent = readdir(folder_dir)) != NULL && nnames < 4095) {
+                    if (ent->d_name[0] == '.') continue;
+                    const char *dot = strrchr(ent->d_name, '.');
+                    if (!dot) continue;
+                    int ok = 0;
+                    for (int ei = 0; valid_exts[ei]; ei++) {
+                        if (strcasecmp(dot, valid_exts[ei]) == 0) { ok = 1; break; }
+                    }
+                    if (!ok) continue;
+                    names[nnames++] = strdup(ent->d_name);
+                }
+                closedir(folder_dir);
+                /* Sort alphabetically */
+                for (int i = 0; i < nnames - 1; i++) {
+                    for (int j = i + 1; j < nnames; j++) {
+                        if (strcmp(names[i], names[j]) > 0) {
+                            char *tmp = names[i]; names[i] = names[j]; names[j] = tmp;
+                        }
+                    }
+                }
+                /* Add each file as a hashcat argument */
+                for (int i = 0; i < nnames; i++) {
+                    char filepath[PATH_MAX];
+                    snprintf(filepath, PATH_MAX, "%s/%s", folder_path, names[i]);
+                    hcarg_add(filepath);
+                    files_added++;
+                    free(names[i]);
+                }
+            }
+            if (files_added == 0) {
+                if (hooks && hooks->stderr_hook)
+                    hooks->stderr_hook(hooks->ctx, "No wordlist files found in folder.");
+                cleanup_tmpfiles();
+                return 0;
+            }
+        } else {
+            hcarg_add(jtr_wordlist);
+        }
         add_hashcat_rule_if_any(jtr_rules);
 
     } else if (jtr_mask) {
@@ -1193,6 +1245,37 @@ void jtrdll_preflight(int argc, char **argv, struct JTRDLL_HOOKS *hooks,
     pf->salt_count = nhashes;
 
     if (jtr_wordlist) {
+        if (strncmp(jtr_wordlist, "$$FOLDER:", 9) == 0) {
+            /* Folder mode: sum word counts from all files */
+            const char *folder_path = jtr_wordlist + 9;
+            DIR *fd = opendir(folder_path);
+            uint64_t total_lines = 0;
+            if (fd) {
+                struct dirent *ent;
+                static const char *valid_exts[] = {".txt", ".lst", ".dic", ".md", NULL};
+                while ((ent = readdir(fd)) != NULL) {
+                    if (ent->d_name[0] == '.') continue;
+                    const char *dot = strrchr(ent->d_name, '.');
+                    if (!dot) continue;
+                    int ok = 0;
+                    for (int ei = 0; valid_exts[ei]; ei++) {
+                        if (strcasecmp(dot, valid_exts[ei]) == 0) { ok = 1; break; }
+                    }
+                    if (!ok) continue;
+                    char filepath[PATH_MAX];
+                    snprintf(filepath, PATH_MAX, "%s/%s", folder_path, ent->d_name);
+                    FILE *wf = fopen(filepath, "r");
+                    if (wf) {
+                        int ch;
+                        while ((ch = fgetc(wf)) != EOF)
+                            if (ch == '\n') total_lines++;
+                        fclose(wf);
+                    }
+                }
+                closedir(fd);
+            }
+            pf->wordlist_rule_count = total_lines > 0 ? total_lines : 1;
+        } else {
         /* count wordlist lines */
         FILE *f = fopen(jtr_wordlist, "r");
         if (f) {
@@ -1202,6 +1285,7 @@ void jtrdll_preflight(int argc, char **argv, struct JTRDLL_HOOKS *hooks,
             fclose(f);
             pf->wordlist_rule_count = lines;
         }
+        } // close else (non-folder mode)
     } else if (jtr_mask || jtr_incr) {
         int maxlen = jtr_maxlen ? atoi(jtr_maxlen) : 8;
         /* Rough estimate: 95^maxlen for all-printable */
