@@ -103,12 +103,12 @@ macdeployqt dist/lc7.app
 ## Planned features
 
 1. Adapted UI for a more comfortable modern macOS look and feel
-2. CPU load and temperature monitoring for Apple M-series processors
+2. ~~CPU load and temperature monitoring for Apple M-series processors~~ ✅ Done in v7.3.1
 3. Summary view of recovered passwords
 4. Pie chart: cracked vs. uncracked accounts, duplicate password detection, percentage of active (non-disabled) accounts cracked
 5. Linux x86-64 release
 6. Benchmark improvements
-7. Additional attack techniques and improvements
+7. ~~Additional attack techniques and improvements~~ ✅ Done in v7.3.2 — folder wordlist mode, custom hashcat rule file per attack, Finalise all-rules sequential mode
 
 ---
 
