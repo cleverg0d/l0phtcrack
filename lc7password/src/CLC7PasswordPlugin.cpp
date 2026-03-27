@@ -4,6 +4,7 @@ CLC7PasswordPlugin::CLC7PasswordPlugin()
 {TR;
 	m_pAccountListFactory = nullptr;
 	m_pPasswordLinkage = nullptr;
+	m_pReportExportStatistics = nullptr;
 }
 
 CLC7PasswordPlugin::~CLC7PasswordPlugin()
@@ -44,10 +45,12 @@ bool CLC7PasswordPlugin::Activate()
 	g_pLinkage->RegisterSessionHandlerFactory(ACCOUNTLIST_HANDLER_ID, m_pAccountListFactory);
 	
 	m_pPasswordLinkage = new CLC7PasswordLinkage();
-	m_pReportExportAccounts = new CLC7ReportExportAccounts();
-	
+	m_pReportExportAccounts   = new CLC7ReportExportAccounts();
+	m_pReportExportStatistics = new CLC7ReportExportStatistics();
+
 	bSuccess &= g_pLinkage->AddComponent(m_pPasswordLinkage);
 	bSuccess &= g_pLinkage->AddComponent(m_pReportExportAccounts);
+	bSuccess &= g_pLinkage->AddComponent(m_pReportExportStatistics);
 	
 	if (!bSuccess)
 	{
@@ -75,6 +78,13 @@ bool CLC7PasswordPlugin::Deactivate()
 		g_pLinkage->RemoveComponent(m_pReportExportAccounts);
 		delete m_pReportExportAccounts;
 		m_pReportExportAccounts = nullptr;
+	}
+
+	if (m_pReportExportStatistics)
+	{
+		g_pLinkage->RemoveComponent(m_pReportExportStatistics);
+		delete m_pReportExportStatistics;
+		m_pReportExportStatistics = nullptr;
 	}
 
 	if (m_pPasswordLinkage)

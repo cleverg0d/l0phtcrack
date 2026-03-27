@@ -145,9 +145,9 @@ IF(APPLE)
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.l0phtcrack.lc7"
         MACOSX_BUNDLE_BUNDLE_NAME "L0phtCrack 7"
         MACOSX_BUNDLE_ICON_FILE "lc7"
-        MACOSX_BUNDLE_BUNDLE_VERSION "7.3.0"
-        MACOSX_BUNDLE_SHORT_VERSION_STRING "7.3.0"
-        MACOSX_BUNDLE_LONG_VERSION_STRING "7.3.0 macOS community fork"
+        MACOSX_BUNDLE_BUNDLE_VERSION "7.3.2"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "7.3.2"
+        MACOSX_BUNDLE_LONG_VERSION_STRING "7.3.2 macOS community fork"
         MACOSX_BUNDLE_COPYRIGHT "L0pht Holdings, LLC. Unofficial community builds maintain separate changelogs."
         MACOSX_RPATH TRUE
         BUILD_WITH_INSTALL_RPATH TRUE
@@ -234,6 +234,20 @@ IF(APPLE)
             "$<TARGET_FILE_DIR:lc7>/$<TARGET_FILE_NAME:qt5keychain>"
         COMMENT "Point bundled lc7core, quazip, qt5keychain at embedded Qt frameworks"
     )
+    # Sync lc7password into bundle BEFORE macdeployqt so it can patch its Qt framework paths.
+    SET(_LC7PASSWORD_PLUGDIR "lcplugins/lc7password{072cbbd8-84ad-481f-b0a6-398b121434db}")
+    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_FILE_DIR:lc7>/${_LC7PASSWORD_PLUGDIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_BINARY_DIR}/dist/${_LC7PASSWORD_PLUGDIR}/liblc7password.dylib"
+            "$<TARGET_FILE_DIR:lc7>/${_LC7PASSWORD_PLUGDIR}/liblc7password.dylib"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_BINARY_DIR}/dist/${_LC7PASSWORD_PLUGDIR}/manifest.json"
+            "$<TARGET_FILE_DIR:lc7>/${_LC7PASSWORD_PLUGDIR}/manifest.json"
+        COMMENT "Sync lc7password plugin into bundle (before macdeployqt patches Qt paths)"
+    )
+
     FIND_PROGRAM(
         LC7_MACDEPLOYQT_EXECUTABLE
         NAMES macdeployqt
@@ -288,6 +302,7 @@ IF(APPLE)
         COMMENT "Sync John Jumbo john_run (john.conf) into app bundle"
     )
     ADD_DEPENDENCIES(lc7 lc7jtr)
+    ADD_DEPENDENCIES(lc7 lc7password)
     FIND_PROGRAM(LC7_CODESIGN_EXECUTABLE codesign)
     IF(LC7_CODESIGN_EXECUTABLE)
         ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD

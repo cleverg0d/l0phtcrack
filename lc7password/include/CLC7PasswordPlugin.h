@@ -6,6 +6,7 @@ class CPasswordUIOptions;
 class CLC7PasswordLinkage;
 class CLC7ReportExportAccounts;
 class CLC7ReportExportAccountsGUI;
+class CLC7ReportExportStatistics;
 
 class CLC7PasswordPlugin:public QObject, public ILC7Plugin
 {
@@ -14,7 +15,8 @@ class CLC7PasswordPlugin:public QObject, public ILC7Plugin
 private:
 	CLC7AccountListFactory *m_pAccountListFactory;
 	
-	CLC7ReportExportAccounts *m_pReportExportAccounts;
+	CLC7ReportExportAccounts   *m_pReportExportAccounts;
+	CLC7ReportExportStatistics *m_pReportExportStatistics;
 	CLC7PasswordLinkage *m_pPasswordLinkage;
 		
 public:

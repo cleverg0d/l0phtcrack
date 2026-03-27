@@ -7,7 +7,7 @@
         }
     ],
     "displayName": "LC7 Windows Import System Plugin",
-    "displayVersion": "7.3.0",
+    "displayVersion": "7.3.2",
     "internalName": "lc7importwin{17324176-3fa7-4c1a-9204-3f391b6b3599}",
     "internalVersion": 58,
     "isSystemLibrary": true,

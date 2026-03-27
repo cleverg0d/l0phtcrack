@@ -5,7 +5,7 @@
 ![Platform](https://img.shields.io/badge/platform-macOS%2013%2B%20Apple%20Silicon-blue)
 ![Architecture](https://img.shields.io/badge/arch-arm64%20(M1%2FM2%2FM3%2FM4)-green)
 ![Engine](https://img.shields.io/badge/engine-hashcat%207.x-orange)
-![Version](https://img.shields.io/badge/version-7.3.0-informational)
+![Version](https://img.shields.io/badge/version-7.3.2-informational)
 
 ![L0phtCrack 7 macOS — main window](docs/screenshots/main-window.png)
 
@@ -104,8 +104,8 @@ macdeployqt dist/lc7.app
 
 1. Adapted UI for a more comfortable modern macOS look and feel
 2. ~~CPU load and temperature monitoring for Apple M-series processors~~ ✅ Done in v7.3.1
-3. Summary view of recovered passwords
-4. Pie chart: cracked vs. uncracked accounts, duplicate password detection, percentage of active (non-disabled) accounts cracked
+3. ~~Summary view of recovered passwords~~ ✅ Done in v7.3.2 — **Statistics** section: crack rate %, top passwords, duplicate detection, complexity analysis, Export Statistics CSV
+4. ~~Pie chart: cracked vs. uncracked accounts, duplicate password detection, percentage of active (non-disabled) accounts cracked~~ ✅ Done in v7.3.2 — merged into Statistics section
 5. Linux x86-64 release
 6. Benchmark improvements
 7. ~~Additional attack techniques and improvements~~ ✅ Done in v7.3.2 — folder wordlist mode, custom hashcat rule file per attack, Finalise all-rules sequential mode

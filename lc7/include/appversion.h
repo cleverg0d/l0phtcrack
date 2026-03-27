@@ -2,7 +2,7 @@
 #define __INC_APPVERSION_H
 
 // EXTERNAL: These are modified by an external script
-#define VERSION_NUMBER "7.3.0"
+#define VERSION_NUMBER "7.3.2"
 #define VERSION_DATE "20250324"
 #define VERSION_TIME "000000"
 // END_EXTERNAL

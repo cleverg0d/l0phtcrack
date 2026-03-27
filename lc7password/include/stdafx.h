@@ -37,6 +37,8 @@
 #include"exportaccountsconfig.h"
 #include"CLC7ReportExportAccounts.h"
 #include"CLC7ReportExportAccountsGUI.h"
+#include"CLC7ReportExportStatistics.h"
+#include"CLC7ReportExportStatisticsGUI.h"
 #include"CLC7FileImportAccounts.h"
 #include"CLC7FileImportAccountsGUI.h"
 

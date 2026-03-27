@@ -19,6 +19,7 @@ SET(lc7password_SOURCES
 	src/CAccountsPage.cpp
 	src/CAuditPage.cpp
 	src/CImportPage.cpp
+	src/CStatisticsPage.cpp
 	src/CLC7AccountList.cpp
 	src/CLC7AccountListFactory.cpp
 	src/CLC7PasswordGUIPlugin.cpp
@@ -27,6 +28,8 @@ SET(lc7password_SOURCES
 	src/CLC7PasswordLinkage.cpp
 	src/CLC7ReportExportAccounts.cpp
 	src/CLC7ReportExportAccountsGUI.cpp
+	src/CLC7ReportExportStatistics.cpp
+	src/CLC7ReportExportStatisticsGUI.cpp
 	src/CLC7FileImportAccounts.cpp
 	src/CLC7FileImportAccountsGUI.cpp
 	src/CAccountsExport.cpp
@@ -57,6 +60,7 @@ SET(lc7password_HEADERS
 	include/CAccountsPage.h
 	include/CAuditPage.h
 	include/CImportPage.h
+	include/CStatisticsPage.h
 	include/CLC7AccountList.h
 	include/CLC7AccountListFactory.h
 	include/CLC7PasswordGUIPlugin.h
@@ -65,6 +69,8 @@ SET(lc7password_HEADERS
 	include/CLC7PasswordLinkage.h
 	include/CLC7ReportExportAccounts.h
 	include/CLC7ReportExportAccountsGUI.h
+	include/CLC7ReportExportStatistics.h
+	include/CLC7ReportExportStatisticsGUI.h
 	include/CLC7FileImportAccounts.h
 	include/CLC7FileImportAccountsGUI.h
 	include/CAccountsExport.h

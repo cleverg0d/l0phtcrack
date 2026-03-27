@@ -6,12 +6,15 @@ CLC7PasswordGUIPlugin::CLC7PasswordGUIPlugin()
 	m_pAccountsPage= nullptr;
 	m_pImportPage= nullptr;
 	m_pAuditPage= nullptr;
+	m_pStatisticsPage= nullptr;
+	m_pReportExportStatisticsGUI= nullptr;
+	m_pExportStatisticsAct= nullptr;
 }
 
 CLC7PasswordGUIPlugin::~CLC7PasswordGUIPlugin()
 {TR;
 
-	if(m_pAccountsPage || m_pImportPage || m_pAuditPage)
+	if(m_pAccountsPage || m_pImportPage || m_pAuditPage || m_pStatisticsPage)
 	{
 		TRDBG("Cleanup password gui plugin didn't happen. Must deactivate");
 	}
@@ -44,13 +47,16 @@ bool CLC7PasswordGUIPlugin::Activate()
 	m_pAccountsPage=CreateAccountsPage();
 	m_pImportPage=CreateImportPage();
 	m_pAuditPage=CreateAuditPage();
-	m_pReportExportAccountsGUI = new CLC7ReportExportAccountsGUI();
+	m_pStatisticsPage=CreateStatisticsPage();
+	m_pReportExportAccountsGUI   = new CLC7ReportExportAccountsGUI();
+	m_pReportExportStatisticsGUI = new CLC7ReportExportStatisticsGUI();
 	m_pCalibrateGUI = new CLC7CalibrateGUI();
 	m_pPasswordUIOptions = new CPasswordUIOptions();
 
 	bool bSuccess=true;
 	
 	bSuccess &= g_pLinkage->AddComponent(m_pReportExportAccountsGUI);
+	bSuccess &= g_pLinkage->AddComponent(m_pReportExportStatisticsGUI);
 	bSuccess &= g_pLinkage->AddComponent(m_pCalibrateGUI);
 	bSuccess &= g_pLinkage->AddComponent(m_pPasswordUIOptions);
 
@@ -69,11 +75,16 @@ bool CLC7PasswordGUIPlugin::Activate()
 		"Export Accounts Table",
 		"Export accounts from accounts table to a CSV file, HTML or XML report.");
 
+	m_pExportStatisticsAct = m_pExportCat->CreateAction(m_pReportExportStatisticsGUI->GetID(), "gui", QStringList(),
+		"Export Statistics",
+		"Export the Statistics page (crack rate, complexity, top passwords) to a CSV file.");
+
 	g_pLinkage->GetGUILinkage()->AddTopMenuItem(m_pCalibrateAct);
 
 	bSuccess &= g_pLinkage->GetGUILinkage()->AddMainMenuTab("Passwords/Audit", "passwords/audit", m_pAuditPage);
 	bSuccess &= g_pLinkage->GetGUILinkage()->AddMainMenuTab("Passwords/Import", "passwords/import", m_pImportPage);
 	bSuccess &= g_pLinkage->GetGUILinkage()->AddMainMenuTab("Passwords/Accounts", "passwords/accounts", m_pAccountsPage);
+	bSuccess &= g_pLinkage->GetGUILinkage()->AddMainMenuTab("Passwords/Statistic", "passwords/statistic", m_pStatisticsPage);
 
 	return bSuccess;
 }
@@ -84,6 +95,7 @@ bool CLC7PasswordGUIPlugin::Deactivate()
 
 	g_pLinkage->GetGUILinkage()->RemoveTopMenuItem(m_pCalibrateAct);
 
+	g_pLinkage->GetGUILinkage()->RemoveMainMenuTab(m_pStatisticsPage);
 	g_pLinkage->GetGUILinkage()->RemoveMainMenuTab(m_pAccountsPage);
 	g_pLinkage->GetGUILinkage()->RemoveMainMenuTab(m_pImportPage);
 	g_pLinkage->GetGUILinkage()->RemoveMainMenuTab(m_pAuditPage);
@@ -112,6 +124,11 @@ bool CLC7PasswordGUIPlugin::Deactivate()
 				m_pExportCat->RemoveAction(m_pExportAccountsAct);
 				m_pExportAccountsAct = nullptr;
 			}
+			if (m_pExportStatisticsAct)
+			{
+				m_pExportCat->RemoveAction(m_pExportStatisticsAct);
+				m_pExportStatisticsAct = nullptr;
+			}
 			m_pReportsCat->RemoveActionCategory(m_pExportCat);
 			m_pExportCat = nullptr;
 		}
@@ -124,6 +141,13 @@ bool CLC7PasswordGUIPlugin::Deactivate()
 		g_pLinkage->RemoveComponent(m_pReportExportAccountsGUI);
 		delete m_pReportExportAccountsGUI;
 		m_pReportExportAccountsGUI = nullptr;
+	}
+
+	if (m_pReportExportStatisticsGUI)
+	{
+		g_pLinkage->RemoveComponent(m_pReportExportStatisticsGUI);
+		delete m_pReportExportStatisticsGUI;
+		m_pReportExportStatisticsGUI = nullptr;
 	}
 
 	if (m_pPasswordUIOptions)
@@ -141,6 +165,9 @@ bool CLC7PasswordGUIPlugin::Deactivate()
 
 	delete m_pAuditPage;
 	m_pAuditPage = nullptr;
+
+	delete m_pStatisticsPage;
+	m_pStatisticsPage = nullptr;
 
 
 	return true;
