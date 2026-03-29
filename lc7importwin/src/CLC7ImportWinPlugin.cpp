@@ -9,7 +9,7 @@ CLC7ImportWinPlugin::CLC7ImportWinPlugin()
 	m_pImportPWDumpGUI = NULL;
 	m_pImportNTDS = NULL;
 	m_pImportNTDSGUI = NULL;
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__linux__)
 	m_pImportWinRemote = NULL;
 	m_pImportWinRemoteGUI = NULL;
 	m_pImportWinLocal = NULL;
@@ -70,7 +70,7 @@ bool CLC7ImportWinPlugin::Activate()
 {	
 	m_use_chalresp = g_pLinkage->GetSettings()->value(UUID_IMPORTWINPLUGIN.toString() + ":enable_chalresp").toBool();
 
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__linux__)
 	m_pImportWinRemote=new CImportWindowsRemote();
 	m_pImportWinRemoteGUI=new CImportWindowsRemoteGUI();
 	m_pImportWinLocal=new CImportWindowsLocal();
@@ -84,7 +84,7 @@ bool CLC7ImportWinPlugin::Activate()
 	m_pImportNTDSGUI = new CImportNTDSGUI();
 
 	bool bSuccess=true;
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__linux__)
 	bSuccess &= g_pLinkage->AddComponent(m_pImportWinRemote);
 	bSuccess &= g_pLinkage->AddComponent(m_pImportWinRemoteGUI);
 	bSuccess &= g_pLinkage->AddComponent(m_pImportWinLocal);
@@ -110,13 +110,13 @@ bool CLC7ImportWinPlugin::Activate()
 
 
 	m_pImportCat = g_pLinkage->CreateActionCategory("import","Import","Import password hashes to audit");
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__linux__)
 	m_pLocalCat = m_pImportCat->CreateActionCategory("local","Local","Import from local machine");
 	m_pRemoteCat = m_pImportCat->CreateActionCategory("remote","Remote","Import from remote machine");
 #endif
 	m_pFileCat = m_pImportCat->CreateActionCategory("file", "File", "Import from file");
 
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__linux__)
 	m_pLocalImportAct = m_pLocalCat->CreateAction(m_pImportWinLocalGUI->GetID(), "gui", QStringList(),
 		"Import from local Windows system",
 		"Import password hashes from this Windows system. Imports local accounts only unless this system is a domain controller.");
@@ -138,7 +138,7 @@ bool CLC7ImportWinPlugin::Activate()
 		"Import from NTDS.DIT/SYSTEM files",
 		"Import Windows domain user password hashes from a Windows NTDS.DIT file and SYSTEM registry backup. ");
 
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__linux__)
 	m_pCommandsCat = g_pLinkage->CreateActionCategory("commands", "Commands", "Commands And Utilities");
 	m_pGenerateRemoteAgentAct = m_pCommandsCat->CreateAction(m_pImportWinRemoteGUI->GetID(), "generateremoteagent", QStringList(),
 		"Generate Remote Agent",
@@ -226,7 +226,7 @@ bool CLC7ImportWinPlugin::Deactivate()
 			m_pImportCat->RemoveActionCategory(m_pFileCat);
 			m_pFileCat = NULL;
 		}
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__linux__)
 		if (m_pLocalCat)
 		{
 			if (m_pLocalImportAct)
@@ -253,7 +253,7 @@ bool CLC7ImportWinPlugin::Deactivate()
 		m_pImportCat = NULL;
 	}
 
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__linux__)
 	if (m_pCommandsCat)
 	{
 		if (m_pGenerateRemoteAgentAct)
@@ -304,7 +304,7 @@ bool CLC7ImportWinPlugin::Deactivate()
 		delete m_pImportPWDumpGUI;
 		m_pImportPWDumpGUI = NULL;
 	}
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__linux__)
 	if (m_pImportWinRemote)
 	{
 		g_pLinkage->RemoveComponent(m_pImportWinRemote);

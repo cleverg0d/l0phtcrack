@@ -19,7 +19,7 @@
 #include"windows_abstraction.h"
 #include"uuids.h"
 
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__linux__)
 #include"PubKeyFile.h"
 #endif
 #include"CLC7ImportWinPlugin.h"
@@ -36,7 +36,7 @@
 #include"CImportNTDS.h"
 #include"CImportNTDSGUI.h"
 
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__linux__)
 // Windows-only: DRSR (requires RPC/SSPI), local/remote Windows system imports
 #include"DRSRImporter.h"
 #include"CImportWindowsLocal.h"

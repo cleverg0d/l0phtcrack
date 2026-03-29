@@ -1,6 +1,7 @@
 #pragma once
 
-#if defined(_DEBUG) || defined(__APPLE__)
+#if defined(_DEBUG) || defined(__APPLE__) || defined(__linux__)
+// On macOS and Linux we load the jtrdll shim in-process (no external john binary)
 #define CLC7JTREXEDLL CLC7JTRDLL
 #else
 #define CLC7JTREXEDLL CLC7JTREXE

@@ -10,7 +10,8 @@ static QString findBundledWordlistsDir()
 	candidates << startup.absoluteFilePath("common/wordlists");
 	candidates << startup.absoluteFilePath("../Resources/wordlists");
 	candidates << startup.absoluteFilePath("../Resources/common/wordlists");
-	candidates << QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("../../../dist/common/common/wordlists");
+	candidates << QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("../../../resources/wordlists");
+	candidates << QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("../../../dist/common/common/wordlists"); // legacy path
 	foreach (QString candidate, candidates)
 	{
 		QDir d(candidate);

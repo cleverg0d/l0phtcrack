@@ -145,9 +145,9 @@ IF(APPLE)
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.l0phtcrack.lc7"
         MACOSX_BUNDLE_BUNDLE_NAME "L0phtCrack 7"
         MACOSX_BUNDLE_ICON_FILE "lc7"
-        MACOSX_BUNDLE_BUNDLE_VERSION "7.3.2"
-        MACOSX_BUNDLE_SHORT_VERSION_STRING "7.3.2"
-        MACOSX_BUNDLE_LONG_VERSION_STRING "7.3.2 macOS community fork"
+        MACOSX_BUNDLE_BUNDLE_VERSION "7.3.3"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "7.3.3"
+        MACOSX_BUNDLE_LONG_VERSION_STRING "7.3.3 macOS community fork"
         MACOSX_BUNDLE_COPYRIGHT "L0pht Holdings, LLC. Unofficial community builds maintain separate changelogs."
         MACOSX_RPATH TRUE
         BUILD_WITH_INSTALL_RPATH TRUE
@@ -175,12 +175,12 @@ IF(APPLE)
     ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_BUNDLE_CONTENT_DIR:lc7>/MacOS/common"
         COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_SOURCE_DIR}/dist/common/common/wordlists"
+            "${CMAKE_SOURCE_DIR}/resources/wordlists"
             "$<TARGET_BUNDLE_CONTENT_DIR:lc7>/MacOS/common/wordlists"
         COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_SOURCE_DIR}/dist/common/common/rules"
+            "${CMAKE_SOURCE_DIR}/resources/rules"
             "$<TARGET_BUNDLE_CONTENT_DIR:lc7>/MacOS/common/rules"
-        COMMENT "Copying bundled wordlists and rules into app bundle"
+        COMMENT "Copying bundled wordlists and rules into app bundle (from resources/)"
     )
     # QLibrary loads liblc7core.dylib from the executable directory; helper dylibs must sit next to lc7.
     ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
@@ -311,6 +311,77 @@ IF(APPLE)
             COMMENT "Ad-hoc codesign: Gatekeeper and plugin dylibs load reliably from Finder"
         )
     ENDIF()
+ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    # Linux: simple executable, no bundle, use RPATH for plugin loading.
+    # NOTE: cmake's LIBRARY_OUTPUT_DIRECTORY (set in root CMakeLists.txt via
+    # SET_LC7_TARGET_PROPERTIES_CONFIG) already places each plugin .so directly
+    # into dist/lcplugins/<guid>/ — the same location $<TARGET_FILE_DIR:lc7>
+    # resolves to (dist/).  Copying .so files to themselves would fail; instead
+    # we only need to copy the manifest.json side-files from the source tree.
+    SET_TARGET_PROPERTIES(lc7 PROPERTIES
+        INSTALL_RPATH "$ORIGIN"
+        BUILD_WITH_INSTALL_RPATH TRUE
+    )
+    # Plugin directory GUIDs (relative to dist/)
+    SET(_LC7PASSWORD_PLUGDIR "lcplugins/lc7password{072cbbd8-84ad-481f-b0a6-398b121434db}")
+    SET(_LC7JTR_PLUGDIR      "lcplugins/lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}")
+    # Source-tree manifests (committed under dist/win64/common/...)
+    SET(_MANIFEST_SRC "${CMAKE_SOURCE_DIR}/dist/win64/common/lcplugins")
+    # Copy manifests into build dist (plugins are already there via OUTPUT_DIRECTORY)
+    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${CMAKE_BINARY_DIR}/dist/${_LC7PASSWORD_PLUGDIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${_MANIFEST_SRC}/lc7password{072cbbd8-84ad-481f-b0a6-398b121434db}/manifest.json"
+            "${CMAKE_BINARY_DIR}/dist/${_LC7PASSWORD_PLUGDIR}/manifest.json"
+        COMMENT "Copy lc7password manifest.json (Linux)"
+    )
+    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${CMAKE_BINARY_DIR}/dist/${_LC7JTR_PLUGDIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${_MANIFEST_SRC}/lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}/manifest.json"
+            "${CMAKE_BINARY_DIR}/dist/${_LC7JTR_PLUGDIR}/manifest.json"
+        COMMENT "Copy lc7jtr manifest.json (Linux)"
+    )
+    # Copy manifests for the remaining plugins (lc7base, lc7importunix, lc7wizard)
+    FOREACH(_PLUG
+        "lc7base{2f63a714-8518-4ab6-ba7d-5440888dfc8a}"
+        "lc7importunix{62a9e7aa-58f4-45ba-8fd7-5ebeb3d80551}"
+        "lc7wizard{43b6f871-7951-4b81-814b-f41ef64c993b}"
+    )
+        ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "${CMAKE_BINARY_DIR}/dist/lcplugins/${_PLUG}"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${_MANIFEST_SRC}/${_PLUG}/manifest.json"
+                "${CMAKE_BINARY_DIR}/dist/lcplugins/${_PLUG}/manifest.json"
+            COMMENT "Copy ${_PLUG} manifest.json (Linux)"
+        )
+    ENDFOREACH()
+    # lc7importwin is now built as a real .so on Linux — manifest.json is copied by lc7importwin POST_BUILD
+    # and the .so is placed by SET_TARGET_PROPERTIES in root CMakeLists.txt
+    ADD_DEPENDENCIES(lc7 lc7importwin)
+    # hashcat shim is copied under the correct name (jtrdll_apple-silicon.so / jtrdll_sse2.so etc.)
+    # by POST_BUILD in external/jtrdll/jtrdll/CMakeLists.txt
+    IF(TARGET jtrdll_linux_hashcat)
+        ADD_DEPENDENCIES(lc7 jtrdll_linux_hashcat)
+    ENDIF()
+    ADD_DEPENDENCIES(lc7 lc7jtr)
+    ADD_DEPENDENCIES(lc7 lc7password)
+    # Copy bundled wordlists and rules into dist/common/ so the app can find them at runtime.
+    # The plugin (lc7hashcat/lc7jtr) searches: startup/common/wordlists and startup/common/rules.
+    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/dist/common/wordlists"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/dist/common/rules"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/resources/wordlists"
+            "${CMAKE_BINARY_DIR}/dist/common/wordlists"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/resources/rules"
+            "${CMAKE_BINARY_DIR}/dist/common/rules"
+        COMMENT "Copying bundled wordlists and rules into dist/common/ (Linux)"
+    )
 ENDIF()
 
 ADD_PRECOMPILED_HEADER(lc7 stdafx lc7_SOURCES)

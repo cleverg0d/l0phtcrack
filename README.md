@@ -1,11 +1,11 @@
-# L0phtCrack 7 — macOS Apple Silicon Fork
+# L0phtCrack 7 — macOS & Linux Community Fork
 
-> A community fork of [L0phtCrack 7](https://gitlab.com/l0phtcrack/l0phtcrack) bringing full macOS support with Apple Silicon GPU acceleration via **hashcat**.
+> A community fork of [L0phtCrack 7](https://gitlab.com/l0phtcrack/l0phtcrack) bringing full macOS and Linux support with Apple Silicon / ARM GPU acceleration via **hashcat**.
 
-![Platform](https://img.shields.io/badge/platform-macOS%2013%2B%20Apple%20Silicon-blue)
-![Architecture](https://img.shields.io/badge/arch-arm64%20(M1%2FM2%2FM3%2FM4)-green)
+![Platform](https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Linux%20ARM64-blue)
+![Architecture](https://img.shields.io/badge/arch-arm64%20(M1%2FM2%2FM3%2FM4%20%7C%20ARM64)-green)
 ![Engine](https://img.shields.io/badge/engine-hashcat%207.x-orange)
-![Version](https://img.shields.io/badge/version-7.3.2-informational)
+![Version](https://img.shields.io/badge/version-7.3.3-informational)
 
 ![L0phtCrack 7 macOS — main window](docs/screenshots/main-window.png)
 
@@ -100,15 +100,32 @@ macdeployqt dist/lc7.app
 
 ---
 
+## Changelog
+
+### v7.3.3 (2026-03-29)
+- **Linux ARM64 support** — fully working build for Linux ARM64 (tested on Kali Linux ARM)
+- **Statistics UI** — Top Passwords table: removed alternating row colors, moved count and percentage into column headers (two-line, bold), removed redundant Total row
+- **Resources consolidation** — wordlists and rules moved to single canonical `resources/` folder; build system copies them into platform-specific dist locations at compile time
+- **Finalyze path fix** — bundled `common/rules/` takes priority over system hashcat paths on all platforms
+- **Linux RPATH fix** — all `.so` files now use `$ORIGIN`-based RPATH (set at cmake level), eliminating hardcoded build-container paths
+- **lc7core loading fix** — explicit `applicationDirPath()`-based path prevents `dlopen()` RUNPATH lookup failures on Linux
+
+### v7.3.2 (2025-03-24)
+- Statistics section: crack rate %, top passwords, duplicate detection, complexity analysis, Export Statistics CSV
+- Folder wordlist mode, custom hashcat rule file per attack, Finalise all-rules sequential mode
+- CPU monitoring for Apple M-series
+
+---
+
 ## Planned features
 
 1. Adapted UI for a more comfortable modern macOS look and feel
 2. ~~CPU load and temperature monitoring for Apple M-series processors~~ ✅ Done in v7.3.1
-3. ~~Summary view of recovered passwords~~ ✅ Done in v7.3.2 — **Statistics** section: crack rate %, top passwords, duplicate detection, complexity analysis, Export Statistics CSV
-4. ~~Pie chart: cracked vs. uncracked accounts, duplicate password detection, percentage of active (non-disabled) accounts cracked~~ ✅ Done in v7.3.2 — merged into Statistics section
-5. Linux x86-64 release
-6. Benchmark improvements
-7. ~~Additional attack techniques and improvements~~ ✅ Done in v7.3.2 — folder wordlist mode, custom hashcat rule file per attack, Finalise all-rules sequential mode
+3. ~~Summary view of recovered passwords~~ ✅ Done in v7.3.2 — **Statistics** section
+4. ~~Linux ARM64 release~~ ✅ Done in v7.3.3
+5. Linux x86-64 release (Intel/AMD)
+6. Windows x64 release (Intel/AMD)
+7. Benchmark improvements
 
 ---
 

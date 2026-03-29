@@ -14,7 +14,7 @@ SET(CMAKE_INCLUDE_CURRENT_DIR ON)
 FIND_PACKAGE(Qt5Widgets REQUIRED)
 FIND_PACKAGE(Qt5Core REQUIRED)
 FIND_PACKAGE(OpenSSL REQUIRED)
-IF(NOT APPLE)
+IF(NOT APPLE AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
 	FIND_PACKAGE(libssh2 REQUIRED)
 ENDIF()
 
@@ -35,13 +35,13 @@ ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	SET(PLATFORM_DEFINITIONS "")
 ENDIF()
 
-IF(APPLE)
-# macOS: PWDump, SAM/SYSTEM, and NTDS.DIT (via libesedb). No Local/Remote/DRSR (require Windows APIs).
+IF(APPLE OR (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
+# macOS/Linux: PWDump, SAM/SYSTEM, and NTDS.DIT (via libesedb). No Local/Remote/DRSR (require Windows APIs).
 FIND_LIBRARY(LIBESEDB_LIB NAMES esedb libesedb
-    PATHS /opt/homebrew/lib /usr/local/lib
+    PATHS /opt/homebrew/lib /usr/local/lib /usr/lib /usr/lib/aarch64-linux-gnu /usr/lib/x86_64-linux-gnu
     REQUIRED)
 FIND_PATH(LIBESEDB_INCLUDE NAMES libesedb.h
-    PATHS /opt/homebrew/include /usr/local/include
+    PATHS /opt/homebrew/include /usr/local/include /usr/include
     REQUIRED)
 
 SET(lc7importwin_SOURCES
@@ -131,13 +131,13 @@ ENDIF()
 #	resources/lc7importwin.qrc
 #)
 
-IF(NOT APPLE)
+IF(NOT APPLE AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
 set(lc7importwin_IDL
 	${CMAKE_CURRENT_SOURCE_DIR}/idl/drsr.idl
 )
 ENDIF()
 
-IF(APPLE)
+IF(APPLE OR (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
 SET(lc7importwin_HEADERS
 	include/PWDumpImporter.h
 	include/SAMImporter.h
@@ -225,20 +225,20 @@ LINK_DIRECTORIES(
 	${PLATFORM_LIBRARY_DIRS}
 )
 
-IF(APPLE)
+IF(APPLE OR (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
 INCLUDE_DIRECTORIES("include" "${CMAKE_CURRENT_BINARY_DIR}" "../api/include" ${OPENSSL_INCLUDE_DIR} ${LIBESEDB_INCLUDE})
 ELSE()
 INCLUDE_DIRECTORIES("include" "idl" "${CMAKE_CURRENT_BINARY_DIR}" "../api/include" "../win-agent/lc7dump" ${OPENSSL_INCLUDE_DIR} ${PLATFORM_INCLUDE_DIRS})
 ENDIF()
 
-IF(NOT APPLE)
+IF(NOT APPLE AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
 # Build idl files
 MACRO_ADD_INTERFACES(GENERATED_FILES_IDL ${lc7importwin_IDL})
 ENDIF()
 
 SOURCE_GROUP("Source Files" FILES ${lc7importwin_SOURCES})
 SOURCE_GROUP("Header Files" FILES ${lc7importwin_HEADERS})
-IF(NOT APPLE)
+IF(NOT APPLE AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
 SOURCE_GROUP("IDL" FILES ${GENERATED_FILES_IDL} ${lc7importwin_IDL})
 ENDIF()
 
@@ -252,7 +252,7 @@ ADD_LIBRARY(lc7importwin SHARED
 	${ResourceSources}
 )
 
-IF(APPLE)
+IF(APPLE OR (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
 TARGET_LINK_LIBRARIES(lc7importwin ${OPENSSL_LIBRARIES} ${LIBESEDB_LIB} lc7core)
 ELSE()
 TARGET_LINK_LIBRARIES(lc7importwin ${OPENSSL_LIBRARIES} ${PLATFORM_LIBS} lc7core)
@@ -283,6 +283,13 @@ ADD_CUSTOM_COMMAND(TARGET lc7importwin POST_BUILD
                 "@loader_path/../../../Frameworks/libcrypto.3.dylib"
         "$<TARGET_FILE:lc7importwin>"
     COMMENT "Fixing library paths for macOS app bundle"
+)
+ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+ADD_CUSTOM_COMMAND(TARGET lc7importwin POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/manifest.linux.json"
+        "$<TARGET_FILE_DIR:lc7importwin>/manifest.json"
+    COMMENT "lc7importwin manifest for Linux"
 )
 ENDIF()
 

@@ -1,6 +1,6 @@
-// ntds_esedb.cpp — macOS NTDS.DIT parser using libesedb (LGPL)
-// Replaces the Windows ESENT (Jet) implementation in ntds.cpp on Apple targets.
-#ifdef __APPLE__
+// ntds_esedb.cpp — macOS/Linux NTDS.DIT parser using libesedb (LGPL)
+// Replaces the Windows ESENT (Jet) implementation in ntds.cpp on non-Windows targets.
+#if defined(__APPLE__) || defined(__linux__)
 
 // Include libesedb BEFORE ntds.h so real typedefs take precedence over void* aliases
 #include<libesedb.h>
@@ -495,8 +495,8 @@ int NTDS::NTLM_ParseDatabase(std::list<LDAPAccountInfo> &ldapAccountInfo,
 // Bitlocker not yet ported to macOS
 int NTDS::Bitlocker_ParseDatabase(std::list<BitlockerAccountInfo> &, QString &error)
 {
-    error = "Bitlocker parsing is not supported on macOS.";
+    error = "Bitlocker parsing is not supported on this platform.";
     return NTDS_API_ERROR;
 }
 
-#endif // __APPLE__
+#endif // __APPLE__ || __linux__

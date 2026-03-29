@@ -4,7 +4,7 @@
 // Create copy of jtrdll
 #if (PLATFORM == PLATFORM_WIN32) || (PLATFORM == PLATFORM_WIN64)
 QString ext = ".dll";
-#elif defined(LINUX)
+#elif defined(__linux__) || (PLATFORM == PLATFORM_LINUX)
 QString ext = ".so";
 #elif defined(__APPLE__)
 QString ext = ".dylib";

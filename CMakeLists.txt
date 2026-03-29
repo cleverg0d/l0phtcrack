@@ -72,6 +72,15 @@ ELSE()
 		SET(LC7_PLATFORM "linux")
 		SET(LC7_PLATFORM_BITS "64")
 		ADD_DEFINITIONS(-DPLATFORM=3)  # PLATFORM_LINUX
+		# GCC is stricter than Clang: struct member named same as typedef is an error.
+		# LC7HashType::fourcc shadows the fourcc typedef — treat as warning to keep API header unchanged.
+		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
+		# Bake $ORIGIN RPATH into every .so and binary at build time.
+		# $ORIGIN         = the directory containing the binary/library itself (dist/)
+		# $ORIGIN/../..   = two levels up from a plugin in dist/lcplugins/guid/ → also dist/
+		# This covers both cases without relying on patchelf as a post-build step.
+		SET(CMAKE_INSTALL_RPATH "$ORIGIN:$ORIGIN/../..")
+		SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 	ENDIF()
 ENDIF()
 
@@ -81,7 +90,7 @@ ENDIF()
 ADD_SUBDIRECTORY(external/qtkeychain)
 ADD_SUBDIRECTORY(external/qtpropertybrowser)
 ADD_SUBDIRECTORY(external/qtsingleapplication)
-IF(MSVC OR APPLE)
+IF(MSVC OR APPLE OR (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
 	ADD_SUBDIRECTORY(external/jtrdll/jtrdll)
 ENDIF()
 ADD_SUBDIRECTORY(external/quazip)
@@ -94,7 +103,7 @@ ADD_SUBDIRECTORY(lc7base)
 ADD_SUBDIRECTORY(lc7password)
 ADD_SUBDIRECTORY(lc7reports)
 ADD_SUBDIRECTORY(lc7wizard)
-IF(MSVC OR APPLE)
+IF(MSVC OR APPLE OR (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
 	ADD_SUBDIRECTORY(lc7importwin)
 ENDIF()
 ADD_SUBDIRECTORY(lc7importunix)
@@ -214,7 +223,7 @@ FUNCTION(SET_LC7_TARGET_PROPERTIES_CONFIG SUFFIX DIST)
 		RUNTIME_OUTPUT_DIRECTORY${SUFFIX} ${DIST}/lcplugins/lc7password{072cbbd8-84ad-481f-b0a6-398b121434db}
 	)
 
-	IF(MSVC OR APPLE)
+	IF(MSVC OR APPLE OR (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
 	SET_TARGET_PROPERTIES( lc7importwin
 		PROPERTIES
 		LIBRARY_OUTPUT_DIRECTORY${SUFFIX} ${DIST}/lcplugins/lc7importwin{17324176-3fa7-4c1a-9204-3f391b6b3599}

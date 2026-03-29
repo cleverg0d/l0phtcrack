@@ -1,7 +1,7 @@
 #include<stdafx.h>
 
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__linux__)
 #define _WIN32
 #include<wchar.h>
 #define _wcsnicmp wcsncasecmp

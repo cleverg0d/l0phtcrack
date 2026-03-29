@@ -1103,6 +1103,41 @@ bool CLC7SystemMonitor::GetAllCPUStatus(QList<ILC7SystemMonitor::CPU_STATUS> & s
 	              sizeof(integer_t) * cpu_info_count);
 
 	return true;
+#elif defined(__linux__)
+{
+	// Read /proc/stat for aggregate CPU utilization, report as a single entry
+	static unsigned long long prev_idle = 0, prev_total = 0;
+	int cpu_usage = 0;
+	FILE *fp = fopen("/proc/stat", "r");
+	if (fp) {
+		unsigned long long user, nice, system, idle, iowait, irq, softirq, steal;
+		if (fscanf(fp, "cpu %llu %llu %llu %llu %llu %llu %llu %llu",
+		           &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal) == 8) {
+			unsigned long long total      = user + nice + system + idle + iowait + irq + softirq + steal;
+			unsigned long long total_idle = idle + iowait;
+			unsigned long long diff_total = total - prev_total;
+			unsigned long long diff_idle  = total_idle - prev_idle;
+			if (diff_total > 0) {
+				cpu_usage = (int)(100.0 * (diff_total - diff_idle) / diff_total);
+			}
+			prev_idle  = total_idle;
+			prev_total = total;
+		}
+		fclose(fp);
+	}
+	status_per_core.clear();
+	int ncores = QThread::idealThreadCount();
+	for (int i = 0; i < ncores; i++)
+	{
+		CPU_STATUS s;
+		s.current_mhz = 0;
+		s.max_mhz = 0;
+		s.mhz_limit = 0;
+		s.utilization = cpu_usage;
+		status_per_core.append(s);
+	}
+	return true;
+}
 #else
 	// Other non-Windows/non-macOS: return empty
 	status_per_core.clear();
@@ -1124,13 +1159,11 @@ bool CLC7SystemMonitor::GetAllCPUStatus(QList<ILC7SystemMonitor::CPU_STATUS> & s
 /// ADL
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64 || PLATFORM==PLATFORM_LINUX
+/* ADL (AMD Display Library) section — Windows only.
+   Linux uses nvidia-smi / rocm-smi at runtime in GetAllGPUStatus below. */
+#if PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64
 
-#if PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64 
 #define ADL_STDCALL __stdcall
-#else
-#define ADL_STDCALL
-#endif
 
 // Memory allocation function
 void* ADL_STDCALL ADL_Main_Memory_Alloc(int iSize)
@@ -1503,8 +1536,8 @@ void CLC7SystemMonitor::GetOverdriveNInfo(int adapterId, int &fanspeed, int &fan
 
 #endif
 
-// GetErrorMessage is a common virtual function - provide implementation for all platforms
-#if !(PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64 || PLATFORM==PLATFORM_LINUX)
+// GetErrorMessage is a common virtual function for non-Windows platforms (macOS, Linux)
+#if !(PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64)
 bool CLC7SystemMonitor::GetErrorMessage(QString & title, QString & message)
 {
 	title = m_error_title;
@@ -1847,7 +1880,49 @@ bool CLC7SystemMonitor::GetAllGPUStatus(QList<ILC7SystemMonitor::GPU_STATUS> & s
 		IOObjectRelease(entry);
 	}
 	IOObjectRelease(iter);
-#endif // __APPLE__
+#elif defined(__linux__)
+{
+	// Try nvidia-smi for NVIDIA GPUs
+	FILE *fp = popen("nvidia-smi --query-gpu=name,utilization.gpu,temperature.gpu,fan.speed --format=csv,noheader,nounits 2>/dev/null", "r");
+	if (fp) {
+		char line[512];
+		while (fgets(line, sizeof(line), fp)) {
+			// Parse: "GPU Name, util%, temp, fan%"
+			GPU_STATUS gs;
+			char name[256]; int util = 0, temp = 0, fan = 0;
+			if (sscanf(line, "%255[^,], %d, %d, %d", name, &util, &temp, &fan) >= 2) {
+				gs.gpu_name = QString(name).trimmed();
+				gs.gpu_type = "NVIDIA";
+				gs.utilization = util;
+				gs.temperature = temp;
+				gs.fanspeed = fan;
+				gs.fanspeed_rpm = 0;
+				status_per_core.append(gs);
+			}
+		}
+		pclose(fp);
+	}
+	// Try rocm-smi for AMD GPUs if no NVIDIA GPUs were found
+	if (status_per_core.isEmpty()) {
+		FILE *fp2 = popen("rocm-smi --showuse --showtemp --showfan --csv 2>/dev/null | tail -n +2", "r");
+		if (fp2) {
+			char line[512];
+			while (fgets(line, sizeof(line), fp2)) {
+				if (line[0] == '\n' || line[0] == '\0') continue;
+				GPU_STATUS gs;
+				gs.gpu_name = "AMD GPU";
+				gs.gpu_type = "AMD";
+				gs.utilization = 0;
+				gs.temperature = 0;
+				gs.fanspeed = 0;
+				gs.fanspeed_rpm = 0;
+				status_per_core.append(gs);
+			}
+			pclose(fp2);
+		}
+	}
+}
+#endif // __APPLE__ / __linux__
 
 	return true;
 }

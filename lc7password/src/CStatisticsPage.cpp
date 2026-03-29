@@ -130,7 +130,7 @@ QWidget *CStatisticsPage::BuildComplexitySection()
 	m_complexityTable->verticalHeader()->setVisible(false);
 	m_complexityTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
 	m_complexityTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-	m_complexityTable->setAlternatingRowColors(true);
+	m_complexityTable->setAlternatingRowColors(false);
 
 	vbox->addWidget(m_complexityTable, 1);
 	gb->setLayout(vbox);
@@ -148,7 +148,7 @@ QWidget *CStatisticsPage::BuildTopPasswordsSection()
 	m_topPwdTable->verticalHeader()->setVisible(false);
 	m_topPwdTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
 	m_topPwdTable->setSelectionBehavior(QAbstractItemView::SelectColumns);
-	m_topPwdTable->setAlternatingRowColors(true);
+	m_topPwdTable->setAlternatingRowColors(false);
 	m_topPwdTable->setMinimumHeight(200);
 
 	m_topPwdInfoLabel = new QLabel();
@@ -287,24 +287,36 @@ void CStatisticsPage::RefreshStatistics()
 		userRows = qMax(userRows, qMin(10, (int)pwdAccounts[sorted[c].second].size()));
 
 	m_topPwdTable->clear();
-	m_topPwdTable->setColumnCount(1 + pwdCols);      // "#" + N passwords
-	m_topPwdTable->setRowCount(userRows + 1);         // user rows + Total
+	m_topPwdTable->setColumnCount(1 + pwdCols);  // "#" + N passwords
+	m_topPwdTable->setRowCount(userRows);          // user rows only (no separate Total row)
 
-	// Column headers: "#" | "Pwd1" | "Pwd2" ...
+	// Column headers two-line: password on top, "N · X.X%" below
 	QStringList headers;
 	headers << "#";
 	for (int c = 0; c < pwdCols; c++)
 	{
-		QString pw = sorted[c].second;
-		headers << (pw.isEmpty() ? "<empty>" : pw);
+		QString pw  = sorted[c].second;
+		int     cnt = sorted[c].first;
+		double  pct = (crackedAll > 0) ? (100.0 * cnt / crackedAll) : 0.0;
+		QString label = QString("%1\n%2 · %3%")
+			.arg(pw.isEmpty() ? "<empty>" : pw)
+			.arg(cnt)
+			.arg(pct, 0, 'f', 1);
+		headers << label;
 	}
 	m_topPwdTable->setHorizontalHeaderLabels(headers);
+
+	// Smaller font for the header so two lines fit without too much height
+	QFont hdrFont = m_topPwdTable->horizontalHeader()->font();
+	hdrFont.setPointSize(qMax(7, hdrFont.pointSize() - 2));
+	hdrFont.setBold(true);
+	m_topPwdTable->horizontalHeader()->setFont(hdrFont);
+	m_topPwdTable->horizontalHeader()->setDefaultAlignment(Qt::AlignCenter);
+	m_topPwdTable->horizontalHeader()->setMinimumSectionSize(60);
+
 	m_topPwdTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
 	for (int c = 1; c <= pwdCols; c++)
 		m_topPwdTable->horizontalHeader()->setSectionResizeMode(c, QHeaderView::Stretch);
-
-	QFont boldFont;
-	boldFont.setBold(true);
 
 	// User rows
 	for (int r = 0; r < userRows; r++)
@@ -326,23 +338,6 @@ void CStatisticsPage::RefreshStatistics()
 			}
 			m_topPwdTable->setItem(r, c + 1, new QTableWidgetItem(cellText));
 		}
-	}
-
-	// Total row (bold): "Total" | "14 (5.5%)" per column
-	auto *totalLabel = new QTableWidgetItem("Total");
-	totalLabel->setFont(boldFont);
-	totalLabel->setTextAlignment(Qt::AlignCenter);
-	m_topPwdTable->setItem(userRows, 0, totalLabel);
-
-	for (int c = 0; c < pwdCols; c++)
-	{
-		int    cnt = sorted[c].first;
-		double pct = (crackedAll > 0) ? (100.0 * cnt / crackedAll) : 0.0;
-		auto *ci = new QTableWidgetItem(
-			QString("%1  (%2%)").arg(cnt).arg(pct, 0, 'f', 1));
-		ci->setFont(boldFont);
-		ci->setTextAlignment(Qt::AlignCenter);
-		m_topPwdTable->setItem(userRows, c + 1, ci);
 	}
 
 	// Info label

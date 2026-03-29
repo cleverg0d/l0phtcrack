@@ -1,7 +1,7 @@
 #ifndef __INC_CLC7IMPORTWINPLUGIN_H
 #define __INC_CLC7IMPORTWINPLUGIN_H
 
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__linux__)
 #include"CImportWindowsRemote.h"
 #include"CImportWindowsRemoteGUI.h"
 #include"CImportWindowsLocal.h"
@@ -27,7 +27,7 @@ private:
 	CImportPWDumpGUI * m_pImportPWDumpGUI;
 	CImportNTDS * m_pImportNTDS;
 	CImportNTDSGUI * m_pImportNTDSGUI;
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__linux__)
 	CImportWindowsRemote *m_pImportWinRemote;
 	CImportWindowsRemoteGUI *m_pImportWinRemoteGUI;
 	CImportWindowsLocal *m_pImportWinLocal;

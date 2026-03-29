@@ -487,13 +487,13 @@ bool CLC7PluginRegistry::LoadPluginLibraries(QList<ILC7PluginLibrary *> & failed
 		
 		SetCurrentLibrary(lib);
 
-		try 
-		{	
+		try
+		{
 			QDirIterator it(lib->GetFullPath(), QStringList() << filter, QDir::Files, QDirIterator::Subdirectories);
-			while (it.hasNext()) 
+			while (it.hasNext())
 			{
 				QString dllpath = it.next();
-				
+
 				QFileInfo dllfi(dllpath);
 
 				SetPath(dllfi.absolutePath());
@@ -506,7 +506,7 @@ bool CLC7PluginRegistry::LoadPluginLibraries(QList<ILC7PluginLibrary *> & failed
 					delete library;
 					continue;
 				}
-			
+
 				TYPEOF_Register *pRegister=(TYPEOF_Register *)(library->resolve("Register"));
 				TYPEOF_Unregister *pUnregister=(TYPEOF_Unregister *)(library->resolve("Unregister"));
 
@@ -526,7 +526,7 @@ bool CLC7PluginRegistry::LoadPluginLibraries(QList<ILC7PluginLibrary *> & failed
 				{
 					throw FailException(QString("Plugin library failed to register: %1 / %2").arg(lib->GetDisplayName()).arg(library->fileName()));
 				}
-						
+
 				registered_libraries.append(library);
 			}
 
@@ -567,28 +567,29 @@ bool CLC7PluginRegistry::LoadPluginLibraries(QList<ILC7PluginLibrary *> & failed
 		QList<CLC7PluginLibrary *> to_remove;
 		foreach(CLC7PluginLibrary *lib, m_plugin_libraries)
 		{
+			// Skip already-failed libraries to prevent infinite loop
+			if(failed_libraries.contains(lib))
+				continue;
+
 			foreach(ILC7PluginLibrary::Dependency dep, lib->GetDependencies())
 			{
 				if(m_library_by_internal_name.contains(dep.m_internal_name))
 				{
 					CLC7PluginLibrary *deplib=m_library_by_internal_name[dep.m_internal_name];
-					
+
 					if(failed_libraries.contains(deplib))
 					{
-						failed_libraries.append(lib);
-						removed=true;
+						if(!failed_libraries.contains(lib)) { failed_libraries.append(lib); removed=true; }
 					}
 
 					if(deplib->GetInternalVersion() < dep.m_min_internal_version)
 					{
-						failed_libraries.append(lib);
-						removed=true;
+						if(!failed_libraries.contains(lib)) { failed_libraries.append(lib); removed=true; }
 					}
 				}
 				else
 				{
-					failed_libraries.append(lib);
-					removed=true;
+					if(!failed_libraries.contains(lib)) { failed_libraries.append(lib); removed=true; }
 				}
 			}
 		}
@@ -822,20 +823,30 @@ void CLC7PluginRegistry::SetPath(QString dirpath)
 	QString path=QDir::toNativeSeparators(cwd)+";"+m_path;			// Add app directory
 	path=QDir::toNativeSeparators(dirpath)+";"+path;	// Add lcplugins directory
 	env.insert("DYLD_LIBRARY_PATH",path);
-#else
-	bitch
+#elif defined(__linux__)
+	// Linux: actually call setenv() so dlopen() inside QLibrary::load() picks it up.
+	// QProcessEnvironment::insert() only modifies a local copy — it does NOT update
+	// the real process environment that dlopen() reads.
+	{
+		const char *cur = getenv("LD_LIBRARY_PATH");
+		m_path = cur ? QString::fromUtf8(cur) : QString();
+		QString cwd = QCoreApplication::applicationDirPath();
+		QString newpath = dirpath + ":" + cwd + (m_path.isEmpty() ? "" : ":" + m_path);
+		setenv("LD_LIBRARY_PATH", newpath.toUtf8().constData(), 1);
+	}
 #endif
 }
 
 void CLC7PluginRegistry::ResetPath(void)
 {TR;
-/*
-	QProcessEnvironment env=QProcessEnvironment::systemEnvironment();
-	env.insert("PATH",m_path);
-	m_path="";
-	*/
 #if (PLATFORM == PLATFORM_WIN32) || (PLATFORM == PLATFORM_WIN64)
 	SetDllDirectory(NULL);
+#elif defined(__linux__)
+	// Restore LD_LIBRARY_PATH to what it was before SetPath().
+	if (m_path.isEmpty())
+		unsetenv("LD_LIBRARY_PATH");
+	else
+		setenv("LD_LIBRARY_PATH", m_path.toUtf8().constData(), 1);
 #else
 	QProcessEnvironment env=QProcessEnvironment::systemEnvironment();
 	env.insert("DYLD_LIBRARY_PATH",m_path);

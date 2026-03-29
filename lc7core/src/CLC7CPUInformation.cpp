@@ -1,7 +1,13 @@
 #include"stdafx.h"
 #include <signal.h>
-#if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
-#include <intrin.h>
+// LC7_X86_CPU: enable x86 intrinsic-based CPU detection only on Windows/macOS x86.
+// On Linux we always use the hashcat shim (no JtR DLL selection needed), so skip it.
+#if (defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)) && !defined(__linux__)
+#  ifdef _MSC_VER
+#    include <intrin.h>   // MSVC / Windows
+#  else
+#    include <x86intrin.h> // GCC/Clang on macOS x86 (not needed on Linux)
+#  endif
 #define LC7_X86_CPU 1
 #endif
 

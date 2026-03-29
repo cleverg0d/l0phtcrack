@@ -4,7 +4,8 @@
 struct IWbemLocator;
 struct IWbemServices;
 
-#if PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64 || PLATFORM==PLATFORM_LINUX
+#if PLATFORM==PLATFORM_WIN32 || PLATFORM==PLATFORM_WIN64
+/* ADL SDK (AMD Display Library) — Windows only; Linux uses nvidia-smi/rocm-smi at runtime */
 #include <adl_sdk.h>
 #endif
 

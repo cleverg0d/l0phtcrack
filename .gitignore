@@ -236,6 +236,28 @@ lc7-signing-key.pfx
 build_win64
 build_win32
 build-macos/
+build-linux/
+build-linux-arm64/
+build-linux-x86_64/
+
+# release archives (generated, not source) — upload via GitHub Releases, not git
+*.tar.gz
+*.tar.bz2
+*.zip
+releases/
+
+# compiled shim binaries (built from jtrdll_hashcat/*.c by cmake)
+jtrdll_hashcat/*.dylib
+jtrdll_hashcat/*.so
+
+# Internal build tooling (Docker, CI scripts) — not for public consumers
+Dockerfile.linux
+Dockerfile.*
+platform/
+build-linux.sh
+
+# Old build output staging dirs (replaced by cmake binary dir dist/)
+dist/linux/
 
 # python turds
 *.pyc

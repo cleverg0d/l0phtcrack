@@ -944,7 +944,28 @@ bool CLC7JTR::AddPasses(fourcc hashtype, int durationblock)
 		// ---- Finalyse "all rules" mode: one pass per .rule file ----
 		if (pass.wordlist_file == "$$CRACKED$$" && m_config["all_rules"].toBool())
 		{
-			QString rulesDir = "/usr/local/share/doc/hashcat/rules";
+		// Priority: bundled rules next to binary > platform hashcat install
+			QString rulesDir;
+			{
+				// 1. Bundled rules shipped with the app (dist/common/rules/) — works offline
+				QDir appDir(QCoreApplication::applicationDirPath());
+				QString bundled = appDir.absoluteFilePath("common/rules");
+				if (QDir(bundled).exists())
+				{
+					rulesDir = bundled;
+				}
+				else
+				{
+#if defined(__linux__)
+					// 2. Kali/Debian hashcat package
+					rulesDir = "/usr/share/hashcat/rules";
+					if (!QDir(rulesDir).exists())
+						rulesDir = "/usr/local/share/hashcat/rules";
+#elif defined(__APPLE__)
+					rulesDir = "/usr/local/share/doc/hashcat/rules";
+#endif
+				}
+			}
 			QDir dir(rulesDir);
 			QStringList ruleFiles = dir.entryList({"*.rule"}, QDir::Files, QDir::Name);
 			if (ruleFiles.isEmpty())

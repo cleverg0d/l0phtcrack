@@ -293,7 +293,9 @@ bool CLC7App::Initialize()
 			RemoveReadOnlyAttributeRecursive(tempdir.absolutePath());
 			if(!tempdir.removeRecursively())
 			{
-				QMessageBox::critical(NULL, "Temporary directory is locked", "Can not start L0phtCrack, the temporary directory %TEMP%\\LC7_temp is locked. Ensure no LC7 process is running, and/or reboot to fix this issue.");
+				QMessageBox::critical(NULL, "Temporary directory is locked",
+				QString("Can not start L0phtCrack, the temporary directory\n%1\nis locked. Ensure no LC7 process is running, and/or delete that folder manually, then retry.")
+					.arg(tempdir.absolutePath()));
 				return false;
 			}
 			tempdir.cdUp();
@@ -326,8 +328,13 @@ bool CLC7App::Initialize()
 		enable_debug();
 	}
 
-	// Load core library
-	m_CoreDLL.setFileName("lc7core");
+	// Load core library.
+	// Use an explicit applicationDirPath()-based path so dlopen() locates the library
+	// regardless of RPATH vs RUNPATH semantics (DT_RUNPATH is not consulted by dlopen).
+	{
+		QString corePath = QCoreApplication::applicationDirPath() + "/lc7core";
+		m_CoreDLL.setFileName(corePath);
+	}
 	if (!m_CoreDLL.load())
 	{
 		const QString err = m_CoreDLL.errorString();

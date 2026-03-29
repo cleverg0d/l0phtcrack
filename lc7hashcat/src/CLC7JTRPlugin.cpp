@@ -205,7 +205,8 @@ static QString findBundledWordlistsDir()
 	candidates << startup.absoluteFilePath("common/wordlists");
 	candidates << startup.absoluteFilePath("../Resources/wordlists");
 	candidates << startup.absoluteFilePath("../Resources/common/wordlists");
-	candidates << QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("../../../dist/common/common/wordlists");
+	candidates << QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("../../../resources/wordlists");
+	candidates << QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("../../../dist/common/common/wordlists"); // legacy path
 	foreach(QString candidate, candidates)
 	{
 		QDir d(candidate);
@@ -226,8 +227,14 @@ static QString findBundledRuleFile(const QString &ruleFileName)
 	candidates << startup.absoluteFilePath(QString("../Resources/rules/%1").arg(ruleFileName));
 	candidates << startup.absoluteFilePath(QString("../Resources/common/rules/%1").arg(ruleFileName));
 	candidates << startup.absoluteFilePath(QString("lcplugins/lc7jtr{9846c8cf-1db1-467e-83c2-c5655aa81936}/rules/%1").arg(ruleFileName));
-	candidates << QDir(QCoreApplication::applicationDirPath()).absoluteFilePath(QString("../../../dist/common/common/rules/%1").arg(ruleFileName));
+	candidates << QDir(QCoreApplication::applicationDirPath()).absoluteFilePath(QString("../../../resources/rules/%1").arg(ruleFileName));
+	candidates << QDir(QCoreApplication::applicationDirPath()).absoluteFilePath(QString("../../../dist/common/common/rules/%1").arg(ruleFileName)); // legacy path
+#if defined(__linux__)
+	candidates << QString("/usr/share/hashcat/rules/%1").arg(ruleFileName);
+	candidates << QString("/usr/local/share/hashcat/rules/%1").arg(ruleFileName);
+#else
 	candidates << QString("/usr/local/share/doc/hashcat/rules/%1").arg(ruleFileName);
+#endif
 	foreach(QString candidate, candidates)
 	{
 		if (QFileInfo(candidate).exists())
