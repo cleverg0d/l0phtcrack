@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "ReportsConfig.h"
+#include "reportsconfig.h"
 
 ReportsConfig::ReportsConfig(QWidget *parent, QWidget *page, QMap<QString,QVariant> config)
 	: QWidget(parent)

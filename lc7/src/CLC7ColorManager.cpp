@@ -1,7 +1,7 @@
 #include"stdafx.h"
 
 #define QT_QTPROPERTYBROWSER_IMPORT 
-#include"../../external/qtpropertybrowser/src/QtPropertyManager.h"
+#include"../../external/qtpropertybrowser/src/qtpropertymanager.h"
 
 #undef TR
 #define TR

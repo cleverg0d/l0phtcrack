@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "importSAMconfig.h"
+#include "importsamconfig.h"
 
 ImportSAMConfig::ImportSAMConfig(QWidget *parent, QWidget *page, const QMap<QString, QVariant> & def_config)
 	: QWidget(parent)

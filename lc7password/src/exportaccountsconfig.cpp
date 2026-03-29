@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "ExportAccountsConfig.h"
+#include "exportaccountsconfig.h"
 
 ExportAccountsConfig::ExportAccountsConfig(QWidget *parent, QWidget *page, const QMap<QString, QVariant> & def_config, bool simple)
 	: QWidget(parent)

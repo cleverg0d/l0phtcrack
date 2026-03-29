@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "importNTDSconfig.h"
+#include "importntdsconfig.h"
 
 ImportNTDSConfig::ImportNTDSConfig(QWidget *parent, QWidget *page, const QMap<QString, QVariant> & def_config)
 	: QWidget(parent)

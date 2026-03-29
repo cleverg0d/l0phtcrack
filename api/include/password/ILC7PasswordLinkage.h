@@ -4,7 +4,7 @@
 #include"core/ILC7Interface.h"
 #include"password/ILC7PasswordEngine.h"
 
-#include "lc7hashtype.h"
+#include "LC7HashType.h"
 
 #ifndef UUID_LC7PASSWORDLINKAGE
 #define UUID_LC7PASSWORDLINKAGE QUuid("{1510c910-516b-497c-af07-a4c27459595b}")

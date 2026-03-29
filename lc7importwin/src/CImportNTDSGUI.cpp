@@ -1,5 +1,5 @@
 #include<stdafx.h>
-#include"importNTDSconfig.h"
+#include"importntdsconfig.h"
 
 CImportNTDSGUI::CImportNTDSGUI()
 {
