@@ -5,8 +5,11 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 export LD_LIBRARY_PATH="$DIR/lib:$DIR:$LD_LIBRARY_PATH"
 export QT_PLUGIN_PATH="$DIR"
 export QT_QPA_PLATFORM_PLUGIN_PATH="$DIR/platforms"
-# Force software OpenGL so the app works on headless / GPU-less systems.
+# Force software OpenGL — works on headless / GPU-less / VPS systems.
+# swrast_dri.so is bundled in dri/ so no GPU driver needed.
 export LIBGL_ALWAYS_SOFTWARE=1
+export LIBGL_DRIVERS_PATH="$DIR/dri"
+export MESA_LOADER_DRIVER_OVERRIDE=swrast
 export QT_XCB_GL_INTEGRATION=none
 export QT_OPENGL=software
 # On headless servers (no DISPLAY, no WAYLAND_DISPLAY) fall back to offscreen
