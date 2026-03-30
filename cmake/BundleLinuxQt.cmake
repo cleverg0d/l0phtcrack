@@ -100,23 +100,25 @@ foreach(pdir ${qt_plugin_candidates})
 endforeach()
 
 # -----------------------------------------------------------------------
-# Bundle xcb and GL libs needed by libqxcb.so / libQt5Gui.so
+# NOTE: We intentionally do NOT bundle libxcb*, libX11*, libXrender, libSM,
+# libICE, libXau, libXdmcp, libGL*, libEGL* or any other X11/GL stack libs.
+#
+# Reason: the X11 stack (libxcb, libX11, libXcursor, etc.) is always present
+# on any system that has a working DISPLAY. More critically, bundling libxcb
+# causes a fatal "double xcb" ABI conflict: system libXcursor (loaded by Qt
+# for cursor theming) links against the SYSTEM libxcb internally, but
+# LD_LIBRARY_PATH causes it to find OUR bundled libxcb instead. Two different
+# libxcb versions in the same process → SIGSEGV in xcb_connect().
+#
+# libxcb ABI is extremely stable (unchanged since xcb 1.x). Our libqxcb.so
+# built on Ubuntu 24.04 works correctly with any system libxcb.so.1.
+#
+# libGL / Mesa: we provide swrast_dri.so + LIBGL_ALWAYS_SOFTWARE=1 so the
+# system GL stack is not needed for rendering; Mesa software rasteriser is
+# self-contained. libGL.so.1 from the system is loaded but only used as a
+# passthrough dispatcher — its ABI is also rock-solid.
 # -----------------------------------------------------------------------
-set(xcb_plugin "${PLATFORMS_DIR}/libqxcb.so")
-if(EXISTS "${xcb_plugin}")
-    ldd_collect("${xcb_plugin}" "libxcb|libGL|libX11|libEGL" xcb_deps)
-    foreach(lib ${xcb_deps})
-        get_filename_component(libname "${lib}" NAME)
-        # Skip system-level libs that are always present; bundle xcb specifically
-        if(lib MATCHES "libxcb|libGL|libX11|libEGL")
-            set(dest "${LIB_DIR}/${libname}")
-            if(NOT EXISTS "${dest}")
-                file(COPY "${lib}" DESTINATION "${LIB_DIR}")
-                message(STATUS "BundleLinuxQt: bundled xcb/GL dep ${libname}")
-            endif()
-        endif()
-    endforeach()
-endif()
+message(STATUS "BundleLinuxQt: X11/xcb/GL libs intentionally NOT bundled (use system)")
 
 # -----------------------------------------------------------------------
 # Generate qt.conf next to the lc7 binary.
