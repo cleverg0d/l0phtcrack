@@ -12,9 +12,24 @@ export LIBGL_DRIVERS_PATH="$DIR/dri"
 export MESA_LOADER_DRIVER_OVERRIDE=swrast
 export QT_XCB_GL_INTEGRATION=none
 export QT_OPENGL=software
-# On headless servers (no DISPLAY, no WAYLAND_DISPLAY) fall back to offscreen
-# so the app starts without a physical display.
+# On headless servers fall back to offscreen.
+# Also detect DISPLAY set but X11 not actually running (common on VPS/cloud).
+# X11 uses a Unix socket at /tmp/.X11-unix/X<N>; if it doesn't exist, xcb aborts.
+_lc7_need_offscreen=0
 if [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ]; then
+    _lc7_need_offscreen=1
+elif [ -n "$DISPLAY" ]; then
+    # Extract display number (e.g. ":0" → "0", ":1.0" → "1")
+    _lc7_dispnum="${DISPLAY##*:}"
+    _lc7_dispnum="${_lc7_dispnum%%.*}"
+    _lc7_xsock="/tmp/.X11-unix/X${_lc7_dispnum}"
+    if [ ! -S "$_lc7_xsock" ]; then
+        # Unix socket missing — X server is not running despite DISPLAY being set.
+        unset DISPLAY
+        _lc7_need_offscreen=1
+    fi
+fi
+if [ "$_lc7_need_offscreen" = "1" ] && [ -z "$QT_QPA_PLATFORM" ]; then
     export QT_QPA_PLATFORM=offscreen
 fi
 exec "$DIR/lc7" "$@"
