@@ -384,22 +384,25 @@ ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     )
 
     # -----------------------------------------------------------------------
-    # Generate lc7.sh launcher script at build time (POST_BUILD).
-    # CONFIGURE_FILE runs at cmake-configure time and loses execute bit;
-    # we use cmake -E copy + chmod inside POST_BUILD to guarantee +x.
+    # Generate lc7.sh launcher script.
+    # Use ADD_CUSTOM_COMMAND with OUTPUT + DEPENDS so the file is regenerated
+    # automatically whenever lc7.sh.in changes — even without a full rebuild.
+    # (CONFIGURE_FILE-only approach failed because it runs at configure time
+    # and POST_BUILD only fires when the lc7 binary itself is relinked.)
     # -----------------------------------------------------------------------
-    CONFIGURE_FILE(
-        "${CMAKE_CURRENT_SOURCE_DIR}/lc7.sh.in"
-        "${CMAKE_BINARY_DIR}/dist/lc7.sh.tmp"
-        @ONLY
-    )
-    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+    ADD_CUSTOM_COMMAND(
+        OUTPUT "${CMAKE_BINARY_DIR}/dist/lc7.sh"
         COMMAND ${CMAKE_COMMAND} -E copy
-            "${CMAKE_BINARY_DIR}/dist/lc7.sh.tmp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/lc7.sh.in"
             "${CMAKE_BINARY_DIR}/dist/lc7.sh"
         COMMAND chmod 755 "${CMAKE_BINARY_DIR}/dist/lc7.sh"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/lc7.sh.in"
         COMMENT "Generate lc7.sh launcher with execute permissions (Linux)"
     )
+    ADD_CUSTOM_TARGET(lc7_sh ALL
+        DEPENDS "${CMAKE_BINARY_DIR}/dist/lc7.sh"
+    )
+    ADD_DEPENDENCIES(lc7 lc7_sh)
 
     # -----------------------------------------------------------------------
     # Bundle Qt5, ICU, xcb, and Qt platform plugins into dist/lib/ and dist/platforms/.
