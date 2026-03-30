@@ -118,4 +118,18 @@ if(EXISTS "${xcb_plugin}")
     endforeach()
 endif()
 
+# -----------------------------------------------------------------------
+# Generate qt.conf next to the lc7 binary.
+# This overrides the plugin search path that is baked into libQt5Core.so.5
+# at compile time (e.g. /usr/lib/x86_64-linux-gnu/qt5/plugins).
+# Without qt.conf, Qt finds and tries to load SYSTEM platform plugins that
+# are ABI-incompatible with our bundled Qt Core → SIGABRT / segfault on
+# any machine whose system Qt differs from the build host.
+# With qt.conf, Qt searches ONLY dist/ and dist/platforms/ for plugins.
+# -----------------------------------------------------------------------
+get_filename_component(lc7_dir "${LC7_BINARY}" DIRECTORY)
+file(WRITE "${lc7_dir}/qt.conf"
+"[Paths]\nPrefix = .\nPlugins = .\nLibraries = lib\n")
+message(STATUS "BundleLinuxQt: wrote qt.conf → ${lc7_dir}/qt.conf")
+
 message(STATUS "BundleLinuxQt: done — libs in ${LIB_DIR}, platform plugins in ${PLATFORMS_DIR}")
