@@ -384,18 +384,21 @@ ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     )
 
     # -----------------------------------------------------------------------
-    # Generate lc7.sh launcher script from template.
-    # Sets LD_LIBRARY_PATH to dist/lib (bundled Qt/ICU) and dist/ (lc7core etc.),
-    # and forces software OpenGL for headless/GPU-less portability.
+    # Generate lc7.sh launcher script at build time (POST_BUILD).
+    # CONFIGURE_FILE runs at cmake-configure time and loses execute bit;
+    # we use cmake -E copy + chmod inside POST_BUILD to guarantee +x.
     # -----------------------------------------------------------------------
     CONFIGURE_FILE(
         "${CMAKE_CURRENT_SOURCE_DIR}/lc7.sh.in"
-        "${CMAKE_BINARY_DIR}/dist/lc7.sh"
+        "${CMAKE_BINARY_DIR}/dist/lc7.sh.tmp"
         @ONLY
     )
     ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+            "${CMAKE_BINARY_DIR}/dist/lc7.sh.tmp"
+            "${CMAKE_BINARY_DIR}/dist/lc7.sh"
         COMMAND chmod 755 "${CMAKE_BINARY_DIR}/dist/lc7.sh"
-        COMMENT "Generate lc7.sh launcher (Linux)"
+        COMMENT "Generate lc7.sh launcher with execute permissions (Linux)"
     )
 
     # -----------------------------------------------------------------------
