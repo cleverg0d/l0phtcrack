@@ -382,6 +382,33 @@ ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
             "${CMAKE_BINARY_DIR}/dist/common/rules"
         COMMENT "Copying bundled wordlists and rules into dist/common/ (Linux)"
     )
+
+    # -----------------------------------------------------------------------
+    # Generate lc7.sh launcher script from template.
+    # Sets LD_LIBRARY_PATH to dist/lib (bundled Qt/ICU) and dist/ (lc7core etc.),
+    # and forces software OpenGL for headless/GPU-less portability.
+    # -----------------------------------------------------------------------
+    CONFIGURE_FILE(
+        "${CMAKE_CURRENT_SOURCE_DIR}/lc7.sh.in"
+        "${CMAKE_BINARY_DIR}/dist/lc7.sh"
+        @ONLY
+    )
+    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND chmod 755 "${CMAKE_BINARY_DIR}/dist/lc7.sh"
+        COMMENT "Generate lc7.sh launcher (Linux)"
+    )
+
+    # -----------------------------------------------------------------------
+    # Bundle Qt5, ICU, xcb, and Qt platform plugins into dist/lib/ and dist/platforms/.
+    # This makes the distribution self-contained: no system Qt required on target machine.
+    # -----------------------------------------------------------------------
+    ADD_CUSTOM_COMMAND(TARGET lc7 POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+            -DLC7_BINARY="$<TARGET_FILE:lc7>"
+            -DDIST_DIR="${CMAKE_BINARY_DIR}/dist"
+            -P "${CMAKE_SOURCE_DIR}/cmake/BundleLinuxQt.cmake"
+        COMMENT "Bundle Qt5/ICU/xcb into dist/lib and dist/platforms (Linux)"
+    )
 ENDIF()
 
 ADD_PRECOMPILED_HEADER(lc7 stdafx lc7_SOURCES)

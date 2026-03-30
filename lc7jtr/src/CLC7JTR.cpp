@@ -2027,10 +2027,11 @@ QString CLC7JTR::GetDefaultJtrDllVersion()
 
 QVector<LC7GPUInfo> CLC7JTR::GetSupportedGPUInfo(bool include_disabled)
 {
-#ifdef __APPLE__
-	// Temporary safety guard for macOS startup stability:
-	// GPU probing through jtrdll can crash in some environments during app init.
-	// Return no GPUs instead of aborting the whole UI.
+#if defined(__APPLE__) || defined(__linux__)
+	// Safety guard for macOS and Linux: GPU probing through jtrdll calls
+	// jtrdll_main(--list=opencl-devices) IN-PROCESS, which can crash via SIGSEGV
+	// (uncatchable on Linux) when running headless or without proper GPU drivers.
+	// Hashcat is used for cracking directly; JtR-based OpenCL enumeration is not needed.
 	Q_UNUSED(include_disabled);
 	return QVector<LC7GPUInfo>();
 #else
