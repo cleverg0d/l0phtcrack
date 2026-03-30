@@ -91,6 +91,22 @@ int main(int argc, char *argv[])
 	//	_CrtSetBreakAlloc(18027);
 	RedirectIOToConsole();
 
+#ifdef __linux__
+    // On Linux, prevent loading SYSTEM Qt theme/style/inputcontext plugins.
+    // Even with qt.conf isolating platform plugins, Qt still searches
+    // /usr/lib/.../qt5/plugins/{platformthemes,styles,platforminputcontexts}
+    // and loads whatever it finds — compiled against SYSTEM Qt Core,
+    // NOT our bundled Qt Core → ABI mismatch → SIGABRT on any machine where
+    // system Qt != our Qt 5.15.13 (built on Ubuntu 24.04).
+    // Belt+suspenders with lc7.sh, but needed here for direct ./lc7 invocation too.
+    if (!getenv("QT_QPA_PLATFORMTHEME"))
+        setenv("QT_QPA_PLATFORMTHEME", "", 1);    // no system theme plugin
+    if (!getenv("QT_STYLE_OVERRIDE"))
+        setenv("QT_STYLE_OVERRIDE", "Fusion", 1); // built-in style, no plugin needed
+    if (!getenv("QT_IM_MODULE"))
+        setenv("QT_IM_MODULE", "none", 1);        // no system input method plugin
+#endif
+
 	CLC7App app(argc, argv);
 
 	// Pass in argc/argv because for some reason there's a race condition.

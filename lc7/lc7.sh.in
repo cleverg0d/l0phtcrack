@@ -12,6 +12,12 @@ export LIBGL_DRIVERS_PATH="$DIR/dri"
 export MESA_LOADER_DRIVER_OVERRIDE=swrast
 export QT_XCB_GL_INTEGRATION=none
 export QT_OPENGL=software
+# Prevent loading SYSTEM Qt theme/style/input plugins that are ABI-incompatible
+# with our bundled Qt Core. Qt always searches /usr/lib/.../qt5/plugins/ regardless
+# of qt.conf — these env vars stop it from loading those incompatible plugins.
+export QT_QPA_PLATFORMTHEME=
+export QT_STYLE_OVERRIDE=Fusion
+export QT_IM_MODULE=none
 # On headless servers fall back to offscreen.
 # Also detect DISPLAY set but X11 not actually running (common on VPS/cloud).
 # X11 uses a Unix socket at /tmp/.X11-unix/X<N>; if it doesn't exist, xcb aborts.
