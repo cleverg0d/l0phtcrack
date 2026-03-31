@@ -1731,6 +1731,11 @@ void LC7Main::slot_processCommandLine()
 	}
 	
 	// See if there's autosaves we need to restore
+	// NOTE: autosave restore dialog is skipped on Linux at startup due to a Qt rendering
+	// crash (SIGSEGV in QDialog::exec) that occurs when the dialog is shown on real X11
+	// displays. Autosave files are still written; users can recover them by opening the
+	// .lc7 file from ~/.local/share/L0pht Holdings LLC/L0phtCrack 7 (Linux)/autosave/.
+#if !defined(__linux__)
 	if (m_ctrl->GetSettings()->value("_core_:autosave", true).toBool())
 	{
 		if (m_ctrl->IsAutoSaveAvailable())
@@ -1741,6 +1746,7 @@ void LC7Main::slot_processCommandLine()
 			}
 		}
 	}
+#endif
 
 	// If all else fails, do the normal thing
 	ILC7Settings *settings = m_ctrl->GetSettings();
